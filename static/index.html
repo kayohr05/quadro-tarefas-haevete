@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quadro de Tarefas — Ha'evete</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --cork: #C9A876;
+    --paper: #FBF7EE;
+    --paper-edge: #EFE6D2;
+    --navy: #1F3864;
+    --navy-ink: #16294a;
+    --gold: #B8860B;
+    --ink: #2B2620;
+    --muted: #6B6255;
+
+    --urgente: #B4453A;   --urgente-bg: #F7E1DE;
+    --alta: #A67C00;      --alta-bg: #FBEEC9;
+    --media: #2B5D8C;     --media-bg: #DCE9F5;
+    --baixa: #6B6B6B;     --baixa-bg: #E7E5E1;
+
+    --doing: #2B5D8C; --doing-bg: #E4EEF6;
+    --done: #4C7A52;  --done-bg: #E8F0E8;
+    --todo-bg: #FBEEDB;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 12px; background: #EFE9DC; }
+
+  .board-wrap {
+    font-family: 'Inter', sans-serif;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,0.10) 0, transparent 45%),
+      radial-gradient(circle at 80% 85%, rgba(0,0,0,0.06) 0, transparent 50%),
+      var(--cork);
+    background-color: var(--cork);
+    border-radius: 18px;
+    padding: 28px 24px 34px;
+    position: relative;
+    overflow: hidden;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .board-wrap::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(0,0,0,0.08) 1px, transparent 1.2px);
+    background-size: 14px 14px; opacity: 0.5; pointer-events: none;
+  }
+
+  .board-header { position: relative; z-index: 1; text-align: center; margin-bottom: 18px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--navy-ink); font-weight: 700; opacity: 0.75; }
+  .board-title { font-family: 'Fraunces', serif; font-weight: 700; font-style: italic; font-size: 30px; color: var(--navy-ink); margin: 4px 0 6px; }
+  .board-sub { font-size: 14px; color: var(--ink); opacity: 0.75; max-width: 540px; margin: 0 auto; }
+
+  .progress-shell {
+    position: relative; z-index: 1; max-width: 420px; margin: 16px auto 0;
+    background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 999px; padding: 4px;
+  }
+  .progress-bar { height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--done), #6FA377); width: 0%; transition: width 0.6s ease; }
+  .progress-label { text-align: center; font-size: 12.5px; color: var(--navy-ink); font-weight: 600; margin-top: 6px; position: relative; z-index: 1; }
+
+  .error-strip {
+    position: relative; z-index: 1; max-width: 640px; margin: 12px auto 0;
+    background: var(--urgente-bg); border: 1px dashed var(--urgente); border-radius: 10px;
+    padding: 8px 14px; font-size: 12.5px; color: #6B2A22; text-align: center; display: none;
+  }
+  .error-strip.visible { display: block; }
+
+  .filter-row {
+    position: relative; z-index: 1; display: flex; justify-content: center;
+    flex-wrap: wrap; gap: 8px; margin: 18px 0 6px;
+  }
+  .filter-chip {
+    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    border: 1.5px solid transparent; background: rgba(255,255,255,0.5); color: var(--navy-ink);
+  }
+  .filter-chip.active { background: var(--navy-ink); color: white; }
+  .filter-chip[data-p="urgente"].active { background: var(--urgente); }
+  .filter-chip[data-p="alta"].active { background: var(--alta); }
+  .filter-chip[data-p="media"].active { background: var(--media); }
+  .filter-chip[data-p="baixa"].active { background: var(--baixa); }
+
+  .cat-heading {
+    position: relative; z-index: 1; font-family: 'Fraunces', serif; font-weight: 700;
+    color: var(--paper); font-size: 16px; margin: 26px 6px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cat-heading .line { flex: 1; height: 1px; background: rgba(255,255,255,0.35); }
+
+  .cards-grid {
+    position: relative; z-index: 1; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 22px 18px; margin-bottom: 8px;
+  }
+
+  .card {
+    background: var(--paper); border-radius: 3px; padding: 18px 16px 16px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.4) inset;
+    position: relative; transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .card:hover { transform: translateY(-2px) rotate(0deg) !important; }
+  .card::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 92%, var(--paper-edge) 100%);
+    pointer-events: none;
+  }
+  .card.hidden { display: none; }
+
+  .pin {
+    position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+    width: 15px; height: 15px; border-radius: 50%;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.4); z-index: 2;
+  }
+  .pin.urgente { background: radial-gradient(circle at 35% 30%, #E07A6F, var(--urgente)); }
+  .pin.alta { background: radial-gradient(circle at 35% 30%, #F0CB63, var(--alta)); }
+  .pin.media { background: radial-gradient(circle at 35% 30%, #6E9FCB, var(--media)); }
+  .pin.baixa { background: radial-gradient(circle at 35% 30%, #ACACAC, var(--baixa)); }
+
+  .priority-tag {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
+    border-radius: 5px; padding: 4px 9px; margin-bottom: 10px; text-transform: uppercase;
+  }
+  .priority-tag.urgente { background: var(--urgente-bg); color: var(--urgente); }
+  .priority-tag.alta { background: var(--alta-bg); color: var(--alta); }
+  .priority-tag.media { background: var(--media-bg); color: var(--media); }
+  .priority-tag.baixa { background: var(--baixa-bg); color: var(--baixa); }
+
+  .card-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 16px; color: var(--ink); margin: 4px 0 6px; }
+  .card-desc { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-bottom: 10px; min-height: 34px; }
+
+  .card-help {
+    font-size: 11.5px; color: var(--navy); background: #F0EDE3; border-left: 3px solid var(--gold);
+    padding: 6px 8px; border-radius: 4px; margin-bottom: 10px; line-height: 1.4; font-style: italic;
+  }
+
+  .locked-box {
+    background: #F5F1E6; border: 1px solid #E4D9BF; border-radius: 8px;
+    padding: 10px 12px; margin-top: 4px; position: relative;
+  }
+  .locked-row { font-size: 12.5px; color: var(--ink); margin-bottom: 4px; }
+  .locked-row .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; display: block; }
+  .edit-pencil {
+    position: absolute; top: 8px; right: 8px; background: white; border: 1px solid #DED2B8;
+    border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .edit-pencil:hover { border-color: var(--navy); }
+  .btn-cancel {
+    background: transparent; color: var(--muted); border: 1px solid #D8CDB8;
+    width: 100%; margin-top: 6px; padding: 6px 10px; border-radius: 6px;
+    font-size: 11.5px; font-family: 'Inter', sans-serif; cursor: pointer;
+  }
+  .btn-cancel:hover { color: var(--navy); border-color: var(--navy); }
+
+  .more-details-btn {
+    background: none; border: none; color: var(--muted); font-size: 11px;
+    text-decoration: underline; cursor: pointer; font-family: 'Inter', sans-serif;
+    padding: 0; margin: -4px 0 10px; display: block;
+  }
+  .more-details-btn:hover { color: var(--navy); }
+  .detail-box {
+    background: #F5F1E6; border: 1px solid #E4D9BF; border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 10px; font-size: 12px; color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .status-badge { display: inline-block; font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 5px 9px; margin-bottom: 10px; }
+  .status-badge.a-fazer { background: var(--todo-bg); color: var(--alta); }
+  .status-badge.em-andamento { background: var(--doing-bg); color: var(--doing); }
+  .status-badge.concluido { background: var(--done-bg); color: var(--done); }
+
+  .field-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; margin: 8px 0 3px; }
+  .card input, .card select {
+    width: 100%; border: 1px solid #DED2B8; border-radius: 6px; padding: 7px 8px;
+    font-size: 12.5px; font-family: 'Inter', sans-serif; background: #fff; margin-bottom: 2px;
+  }
+  .card input:focus, .card select:focus { outline: 2px solid var(--navy); outline-offset: 1px; }
+
+  .btn {
+    border: none; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 700;
+    font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; width: 100%; margin-top: 10px;
+  }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-save { background: var(--navy); color: white; }
+  .btn-save:hover { background: var(--navy-ink); }
+  .btn-clear {
+    background: transparent; color: var(--muted); border: 1px solid #D8CDB8;
+    width: 100%; margin-top: 6px; padding: 6px 10px; border-radius: 6px;
+    font-size: 11.5px; font-family: 'Inter', sans-serif; cursor: pointer;
+  }
+  .btn-clear:hover { color: var(--urgente); border-color: var(--urgente); }
+
+  .footer-note { position: relative; z-index: 1; text-align: center; font-size: 11.5px; color: rgba(43,38,32,0.6); margin-top: 20px; }
+  .refresh-btn { display: block; margin: 4px auto 0; background: none; border: none; text-decoration: underline; font-size: 11.5px; color: var(--navy-ink); cursor: pointer; font-family: 'Inter', sans-serif; }
+
+  @media (max-width: 480px) {
+    .board-title { font-size: 24px; }
+    .cards-grid { grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="board-wrap" id="board">
+  <div class="board-header">
+    <div class="eyebrow">Ha'evete &middot; Missão em ação</div>
+    <div class="board-title">Quadro de Tarefas</div>
+    <div class="board-sub">Família Bruno, Pri, Manu e Matheus — escolha uma tarefa, deixe seu nome e celular, e marque o andamento.</div>
+  </div>
+
+  <div class="progress-shell"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-label" id="progressLabel">carregando...</div>
+  <div class="error-strip" id="errorStrip"></div>
+
+  <div class="filter-row" id="filterRow">
+    <div class="filter-chip active" data-p="todas">Todas</div>
+    <div class="filter-chip" data-p="urgente">Urgente</div>
+    <div class="filter-chip" data-p="alta">Alta</div>
+    <div class="filter-chip" data-p="media">Média</div>
+    <div class="filter-chip" data-p="baixa">Baixa</div>
+  </div>
+
+  <div id="categoriesContainer"></div>
+
+  <div class="footer-note">
+    Quadro compartilhado — as atualizações de todos aparecem automaticamente.
+    <button class="refresh-btn" onclick="loadState()">atualizar agora</button>
+  </div>
+</div>
+
+<script>
+  const PRIORITY_LABELS = { urgente: "Prioridade: Urgente", alta: "Prioridade: Alta", media: "Prioridade: Média", baixa: "Prioridade: Baixa" };
+  const STATUS_LABELS = { "a-fazer": "A fazer", "em-andamento": "Em andamento", "concluido": "Concluído" };
+  const CATEGORY_NAMES = { casa: "Casa", familia: "Família (geral)", pri: "Pri (mãe)", matheus: "Matheus (9 anos)", manu: "Manu (13 anos)", bruno: "Bruno (pai)" };
+  const CATEGORY_ORDER = ["matheus", "pri", "bruno", "familia", "manu", "casa"];
+
+  const tasks = [
+    // ---- MATHEUS ----
+    { id: "m1", cat: "matheus", pri: "urgente", title: "Escala de cuidado do Matheus", desc: "Organizar voluntários para ficar com ele em horário fixo (ex: 14h–18h), liberando o Bruno para trabalhar.",
+      detail: "A mãe (Pri) está com depressão profunda e não consegue sair da cama, então hoje é o Bruno quem cuida do Matheus praticamente em tempo integral — o que o impede de sair para trabalhar. Montar uma escala de voluntários para ficar com o Matheus em um horário fixo (sugestão: 14h–18h) libera o Bruno para atender clientes de higienização nesse período. Não é preciso ser especialista em autismo — o principal é presença, paciência e segurança." },
+    { id: "m2", cat: "matheus", pri: "urgente", title: "Estímulo sensorial para o Matheus", desc: "Alguém com jeito para autismo passar tempo com ele (água, música).",
+      detail: "O Matheus tem autismo nível 3 não-verbal e ama música e água — são canais que ajudam a acalmá-lo e estimulá-lo. Buscar alguém (voluntário ou profissional) com jeito para lidar com crianças autistas para passar tempo com ele explorando esses estímulos. Isso também dá um respiro real para a Pri." },
+    { id: "m3", cat: "matheus", pri: "urgente", title: "Contato TEA x APAE", desc: "Buscar contato na prefeitura ou conselho tutelar de Mogi das Cruzes.",
+      detail: "A família foi informada de que o Matheus teria que escolher entre o atendimento da APAE ou do Centro de TEA de Mogi das Cruzes — mas o Bruno já viu casos de crianças recebendo os dois benefícios ao mesmo tempo. Precisamos de um contato dentro da prefeitura, saúde ou assistência social de Mogi das Cruzes para entender se essa exigência é uma regra real ou apenas uma orientação informal, e tentar reverter." },
+    { id: "m4", cat: "matheus", pri: "alta", title: "Natação para o Matheus", desc: "Contatar academias/clubes da região sobre bolsa social para aulas regulares.",
+      detail: "O Matheus ama água. Aulas regulares de natação seriam maravilhosas para ele — trabalham a parte sensorial e motora, além de ser algo que ele genuinamente gosta. Buscar academias, clubes ou ONGs na região de Mogi das Cruzes que ofereçam bolsa social para crianças com deficiência." },
+    { id: "m5", cat: "matheus", pri: "alta", title: "Tratamento contínuo no centro de TEA", desc: "Viabilizar o acompanhamento terapêutico regular, além do contato institucional inicial.",
+      detail: "Além de resolver a questão institucional (TEA x APAE), é essencial viabilizar o acompanhamento terapêutico contínuo do Matheus — terapias como fonoaudiologia, terapia ocupacional e estimulação especializada costumam ser indicadas para autismo nível 3 não-verbal, e fazem diferença real no desenvolvimento dele." },
+    { id: "m6", cat: "matheus", pri: "alta", title: "Remédio de uso contínuo", desc: "Garantir acesso regular à medicação do Matheus.",
+      detail: "O Matheus faz uso de remédio contínuo. É importante garantir que a família nunca fique sem acesso a essa medicação — seja via SUS, farmácia de alto custo, doação ou farmácia parceira, evitando interrupções que afetariam diretamente o bem-estar dele." },
+    { id: "m7", cat: "matheus", pri: "media", title: "Reduzir dependência do celular", desc: "Buscar brinquedos e estímulos especiais em casa como alternativa ao celular.",
+      detail: "O Matheus é completamente dependente do celular — sem o aparelho, ele literalmente surta. Uma hipótese é que a casa carece de outros estímulos adequados. Vale buscar brinquedos sensoriais (com luzes, texturas, sons) como alternativa, e talvez orientação de um terapeuta ocupacional sobre como fazer essa transição aos poucos, sem trauma." },
+
+    // ---- PRI ----
+    { id: "p1", cat: "pri", pri: "urgente", title: "Escala de visitas à Pri", desc: "Revezar visitas semanais, levar comida pronta e fazer companhia.",
+      detail: "A Pri sofre de depressão profunda e hoje não consegue sair da cama. Uma escala de 2 a 3 mulheres da igreja revezando visitas semanais — levando comida pronta, fazendo companhia, sem cobrar nada dela — é o passo mais realista agora, já que terapia ainda não é algo que ela está pronta para aceitar." },
+    { id: "p2", cat: "pri", pri: "alta", title: "Rede de apoio entre mães atípicas", desc: "Conectar a Pri com outras mães de crianças atípicas para desabafar e trocar experiências.",
+      detail: "Como mãe de uma criança atípica (autismo nível 3), a Pri precisa de outras mulheres que vivem ou viveram algo parecido, para desabafar e trocar vivências sem julgamento. Buscar grupos de apoio a mães de autistas na região, ou conectar com outras famílias da igreja ou do centro de TEA que enfrentam situação semelhante." },
+    { id: "p3", cat: "pri", pri: "alta", title: "Preparar aceitação de terapia", desc: "Trabalho gradual para que ela se sinta segura em aceitar terapia — ela sofre de depressão severa há anos.",
+      detail: "A Pri sofre de depressão severa há anos e ainda não está pronta para terapia. Não dá para forçar — é preciso um trabalho gradual e delicado, de confiança e presença, para que ela se sinta segura em aceitar ajuda profissional no seu próprio tempo." },
+    { id: "p4", cat: "pri", pri: "media", title: "Cuidados pessoais da Pri", desc: "Cabelo, maquiagem, alimentação, exercício, passear.",
+      detail: "Cabelo, maquiagem, alimentação, exercício e passear são coisas simples que podem devolver um pouco de dignidade e ânimo para a Pri, sempre respeitando o que ela conseguir aceitar no momento — sem pressão." },
+    { id: "p5", cat: "pri", pri: "media", title: "Fazer amigas / pertencer a um grupo", desc: "Ajudar a Pri a se aproximar de um grupo e de coisas que gosta.",
+      detail: "Ajudar a Pri a se reconectar com atividades que gosta e se aproximar de um grupo de mulheres pode reconstruir vínculos sociais que se perderam com a rotina pesada de cuidado do lar e do Matheus." },
+    { id: "p6", cat: "pri", pri: "baixa", title: "Casamento pequeno", desc: "Organizar cerimônia simples para amigos e família próxima (fotógrafo já garantido). Previsto para início do ano que vem.",
+      detail: "Já existe fotógrafo confirmado para uma cerimônia pequena, reunindo amigos e familiares próximos. A ideia inicial é realizar isso no início do ano que vem, mas pode ser antecipada se as condições da família permitirem — seria um marco bonito de celebração no meio dessa caminhada." },
+
+    // ---- BRUNO ----
+    { id: "b1", cat: "bruno", pri: "urgente", title: "Vídeos do trabalho do Bruno", desc: "Gravar 3–4 vídeos curtos (antes/depois de estofado limpo) para divulgação.",
+      detail: "O Bruno hoje sobrevive de bicos de higienização de estofados (sofá, cama e veículos), sua única fonte de renda no momento. Gravar vídeos curtos de antes/depois do trabalho dele é o material mais eficaz para divulgação e gera confiança em quem for contratar." },
+    { id: "b2", cat: "bruno", pri: "urgente", title: "Divulgação no Instagram", desc: "Publicar os vídeos no Instagram do Ha'evete e pedir repost para a igreja.",
+      detail: "Publicar os vídeos e fotos do trabalho do Bruno no Instagram do Ha'evete, e pedir para a igreja toda repostar, amplia o alcance para o maior número de pessoas possível — que era exatamente o pedido dele." },
+    { id: "b3", cat: "bruno", pri: "urgente", title: "Indicar clientes para o Bruno", desc: "Levantar quem tem estofado, colchão ou banco de carro para limpar.",
+      detail: "Levantar na igreja e na rede de contatos quem tem sofá, colchão, banco de carro ou estofado em geral precisando de limpeza, e indicar diretamente para contratar o serviço do Bruno — conversão rápida de rede de contatos em renda real para a família." },
+    { id: "b4", cat: "bruno", pri: "media", title: "Conteúdo contínuo para redes sociais", desc: "Manter produção regular de conteúdo para sustentar a visibilidade do negócio a médio prazo.",
+      detail: "Além do impulso inicial de divulgação, é importante manter uma produção regular de conteúdo para as redes sociais, sustentando a visibilidade do negócio do Bruno a médio prazo — já que essa é hoje a principal fonte de renda da família." },
+    { id: "b5", cat: "bruno", pri: "baixa", title: "Pertencer a um grupo de amigos", desc: "Aproximar o Bruno de um grupo de convivência e apoio.",
+      detail: "O Bruno também precisa de espaço para si — hoje ele está sobrecarregado cuidando do Matheus, da casa e do sustento da família. Aproximá-lo de um grupo de amigos para convivência e apoio ajuda no bem-estar dele, que também merece cuidado." },
+
+    // ---- FAMÍLIA GERAL ----
+    { id: "f1", cat: "familia", pri: "alta", title: "Arrumar ou trocar o carro", desc: "Consertar o carro da família ou vender e comprar outro que o Bruno possa usar nos cuidados da família.",
+      detail: "A família precisa consertar o carro atual, ou vendê-lo e comprar outro, para que o Bruno consiga se deslocar com os cuidados da família — consultas médicas, centro de TEA, natação e atendimentos em geral dependem disso." },
+    { id: "f2", cat: "familia", pri: "alta", title: "Estudar a Bíblia com a família", desc: "Viabilizar agenda para manter os estudos bíblicos mensais já iniciados.",
+      detail: "Já existem estudos bíblicos sobre a graça de Jesus sendo conduzidos com a família (atualmente um estudo por mês), mas a agenda dos líderes dificulta manter uma frequência maior. Buscar apoio para viabilizar isso com mais regularidade, ou outra dupla disposta a ajudar a manter o ritmo." },
+    { id: "f3", cat: "familia", pri: "urgente", title: "LOAS e Bolsa Família", desc: "Tiago (assessor da Dep. Camila Godoi) e o vereador Clodoaldo já estão buscando esses benefícios juntos.",
+      detail: "O LOAS (por conta da condição do Matheus) e o Bolsa Família são benefícios essenciais para a estabilidade financeira da família. Tiago, assessor da Deputada Camila Godoi, já está acionando o vereador de Mogi das Cruzes, Clodoaldo, para buscarem juntos esses benefícios junto aos órgãos competentes. Está com o Kayo o acompanhamento desse andamento." },
+
+    // ---- MANU ----
+    { id: "n1", cat: "manu", pri: "urgente", title: "Bolsa escolar da Manu", desc: "Falar com a escola adventista sobre verba de bolsa social.",
+      detail: "Conseguir uma bolsa na escola adventista para a Manu (13 anos) seria um grande alívio financeiro para a família e colocaria ela num ambiente escolar com valores mais alinhados ao que a família busca para ela." },
+    { id: "n2", cat: "manu", pri: "media", title: "Amizades saudáveis (desbravadores)", desc: "Avaliar a entrada da Manu no clube de desbravadores.",
+      detail: "A Manu precisa de boas amigas que a influenciem para o bem, nessa fase importante dos 13 anos. Está sendo avaliada a entrada dela no clube de desbravadores como forma de conectar com um grupo de convivência saudável." },
+    { id: "n3", cat: "manu", pri: "baixa", title: "Cuidados pessoais da Manu", desc: "Cabelo, maquiagem, alimentação, exercício, passear.",
+      detail: "Cabelo, maquiagem, alimentação, exercício e passear são coisas simples que ajudam a Manu, na fase de adolescência, a se sentir cuidada e valorizada — especialmente considerando a sobrecarga emocional que ela também vive em casa." },
+
+    // ---- CASA ----
+    { id: "c1", cat: "casa", pri: "urgente", title: "Eletricista — fiação do chuveiro", desc: "Revisar a fiação que desarma durante o banho. Risco de choque.",
+      detail: "A fiação do chuveiro desarma durante o banho — isso é um risco real de choque elétrico para qualquer pessoa da família, e especialmente perigoso para o Matheus, que não conseguiria comunicar um problema no meio do banho por ser não-verbal." },
+    { id: "c2", cat: "casa", pri: "urgente", title: "Telas de proteção", desc: "Comprar e instalar telas na escada e no muro da lavanderia.",
+      detail: "São necessárias telas de proteção na parte de cima e de baixo da escada da sala, e também no muro externo da lavanderia — pontos de risco real de queda, considerando principalmente o comportamento do Matheus dentro de casa." },
+    { id: "c3", cat: "casa", pri: "urgente", title: "Pedreiro / Engenheiro — muro", desc: "Organizar mutirão de um dia para levantar o muro da laje a 1,6m.",
+      detail: "Aumentar o muro de toda a laje para 1,6m de altura é essencial para a segurança da família, especialmente pensando no Matheus. A execução precisa de um pedreiro e um engenheiro que garantam que o trabalho será feito com segurança — a mão de obra da própria família só pode ajudar, não liderar essa obra." },
+    { id: "c4", cat: "casa", pri: "urgente", title: "Colchão do Matheus", desc: "Conseguir doação ou comprar um colchão melhor para ele.",
+      detail: "Conseguir um colchão melhor para o Matheus impacta diretamente a qualidade do sono dele, o que por sua vez afeta seu comportamento e a frequência de crises durante o dia." },
+    { id: "c5", cat: "casa", pri: "alta", title: "Guarda-roupas para o quarto das crianças", desc: "Conseguir um guarda-roupa para organizar as roupas das crianças.",
+      detail: "O quarto das crianças (Matheus e Manu) não tem guarda-roupa — conseguir um ajudaria a organizar melhor as roupas e o próprio espaço do quarto." },
+    { id: "c6", cat: "casa", pri: "media", title: "Reparo da torneira do banheiro", desc: "Consertar o vazamento/defeito da torneira.",
+      detail: "A torneira do banheiro está com defeito e precisa de um reparo simples — item de manutenção básica da casa." },
+    { id: "c7", cat: "casa", pri: "media", title: "Reparo da descarga do banheiro", desc: "Consertar a descarga com defeito.",
+      detail: "A descarga do banheiro está com defeito e precisa de reparo — outro item de manutenção básica que afeta o dia a dia da casa." },
+    { id: "c8", cat: "casa", pri: "media", title: "Desnível do piso da laje", desc: "Corrigir o desnível que forma poça de água na laje.",
+      detail: "Existe um desnível no piso da laje que forma poça de água. Com o tempo, isso pode gerar infiltração, mofo ou risco de escorregão — vale corrigir antes que vire um problema estrutural maior." },
+    { id: "c9", cat: "casa", pri: "media", title: "Gabinete de pia da cozinha", desc: "Conseguir gabinete, ou portas/cortina para o que já existe.",
+      detail: "A cozinha precisa de um gabinete para a pia — ou, na falta disso, ao menos portas ou uma cortina para o espaço que já existe, organizando e protegendo o ambiente." },
+    { id: "c10", cat: "casa", pri: "baixa", title: "Caneleta ou presilhas para fiação", desc: "Esconder a fiação exposta na parte de cima da casa.",
+      detail: "Existe fiação exposta na parte de cima da casa que precisa ser escondida com caneletas ou presilhas — tanto por segurança quanto por organização e estética do ambiente." },
+    { id: "c11", cat: "casa", pri: "baixa", title: "Pintura de toda a casa", desc: "Pintura branca geral e avaliar tinta para as partes cruas de tijolo.",
+      detail: "A casa toda precisa de pintura — tinta branca nas paredes já rebocadas, e avaliar se existe alguma tinta adequada para as partes onde o tijolo ainda está cru/exposto." },
+  ];
+
+  let state = {};
+  let activeFilter = "todas";
+  let editingTasks = new Set();
+  let expandedTasks = new Set();
+  let savingTasks = new Set();
+
+  function renderBoard() {
+    const container = document.getElementById("categoriesContainer");
+    container.innerHTML = "";
+
+    CATEGORY_ORDER.forEach(cat => {
+      const catTasks = tasks.filter(t => t.cat === cat);
+      if (!catTasks.length) return;
+
+      const heading = document.createElement("div");
+      heading.className = "cat-heading";
+      heading.innerHTML = `<span>${CATEGORY_NAMES[cat]}</span><span class="line"></span>`;
+      container.appendChild(heading);
+
+      const grid = document.createElement("div");
+      grid.className = "cards-grid";
+
+      catTasks.forEach(task => {
+        const entry = state[task.id] || { name: "", phone: "", status: "a-fazer" };
+        const hasOwner = !!(entry.name || entry.phone);
+        const isEditing = editingTasks.has(task.id) || !hasOwner;
+        const isSaving = savingTasks.has(task.id);
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.priority = task.pri;
+        if (activeFilter !== "todas" && task.pri !== activeFilter) card.classList.add("hidden");
+
+        const formOrLocked = isEditing ? `
+          <div class="field-label">Nome</div>
+          <input type="text" placeholder="Seu nome" maxlength="40" data-field="name" data-id="${task.id}" value="${escapeAttr(entry.name)}" />
+
+          <div class="field-label">Celular (com DDD)</div>
+          <input type="tel" placeholder="(11) 91234-5678" maxlength="20" data-field="phone" data-id="${task.id}" value="${escapeAttr(entry.phone)}" />
+
+          <div class="field-label">Status</div>
+          <select data-field="status" data-id="${task.id}">
+            <option value="a-fazer" ${entry.status === "a-fazer" ? "selected" : ""}>A fazer</option>
+            <option value="em-andamento" ${entry.status === "em-andamento" ? "selected" : ""}>Em andamento</option>
+            <option value="concluido" ${entry.status === "concluido" ? "selected" : ""}>Concluído</option>
+          </select>
+
+          <button class="btn btn-save" data-id="${task.id}" ${isSaving ? "disabled" : ""}>${isSaving ? "Salvando..." : "Salvar"}</button>
+          ${hasOwner ? `<button class="btn-cancel" data-action="cancel" data-id="${task.id}">cancelar</button>` : ""}
+          ${hasOwner ? `<button class="btn-clear" data-id="${task.id}">limpar tarefa</button>` : ""}
+        ` : `
+          <div class="locked-box">
+            <button class="edit-pencil" data-action="edit" data-id="${task.id}" title="Editar">✏️</button>
+            <div class="locked-row"><span class="lbl">Nome</span>${escapeAttr(entry.name) || "—"}</div>
+            <div class="locked-row"><span class="lbl">Celular</span>${escapeAttr(entry.phone) || "—"}</div>
+          </div>
+        `;
+
+        const isExpanded = expandedTasks.has(task.id);
+
+        card.innerHTML = `
+          <div class="pin ${task.pri}"></div>
+          <span class="priority-tag ${task.pri}">${PRIORITY_LABELS[task.pri]}</span>
+          <div class="card-title">${task.title}</div>
+          <div class="card-desc">${task.desc}</div>
+          <div class="card-help">Você pode fazer direto ou buscar quem tenha o recurso ou a habilidade certa. Só precisa de um dono para avançar.</div>
+          <button class="more-details-btn" data-action="toggle-detail" data-id="${task.id}">${isExpanded ? "ocultar detalhes" : "+ mais detalhes"}</button>
+          ${isExpanded ? `<div class="detail-box">${task.detail}</div>` : ""}
+          <span class="status-badge ${entry.status}">${STATUS_LABELS[entry.status]}</span>
+          ${formOrLocked}
+        `;
+        grid.appendChild(card);
+      });
+      container.appendChild(grid);
+    });
+
+    container.querySelectorAll(".btn-save").forEach(btn => btn.addEventListener("click", () => saveTask(btn.dataset.id)));
+    container.querySelectorAll(".btn-clear").forEach(btn => btn.addEventListener("click", () => clearTask(btn.dataset.id)));
+    container.querySelectorAll("[data-action='edit']").forEach(btn => btn.addEventListener("click", () => {
+      editingTasks.add(btn.dataset.id);
+      renderBoard();
+    }));
+    container.querySelectorAll("[data-action='cancel']").forEach(btn => btn.addEventListener("click", () => {
+      editingTasks.delete(btn.dataset.id);
+      renderBoard();
+    }));
+    container.querySelectorAll("[data-action='toggle-detail']").forEach(btn => btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      if (expandedTasks.has(id)) expandedTasks.delete(id); else expandedTasks.add(id);
+      renderBoard();
+    }));
+
+    updateProgress();
+  }
+
+  function updateProgress() {
+    const total = tasks.length;
+    const done = Object.values(state).filter(e => e?.status === "concluido").length;
+    const inProgress = Object.values(state).filter(e => e?.status === "em-andamento").length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById("progressBar").style.width = pct + "%";
+    document.getElementById("progressLabel").textContent = `${done} concluídas · ${inProgress} em andamento · de ${total} tarefas (${pct}%)`;
+  }
+
+  function showError(message) {
+    const strip = document.getElementById("errorStrip");
+    if (!message) {
+      strip.classList.remove("visible");
+      strip.textContent = "";
+      return;
+    }
+    strip.textContent = message;
+    strip.classList.add("visible");
+    setTimeout(() => strip.classList.remove("visible"), 5000);
+  }
+
+  function escapeAttr(str) {
+    const d = document.createElement("div");
+    d.textContent = str || "";
+    return d.innerHTML.replace(/"/g, "&quot;");
+  }
+
+  async function saveTask(taskId) {
+    const name = document.querySelector(`input[data-field="name"][data-id="${taskId}"]`)?.value?.trim() || "";
+    const phone = document.querySelector(`input[data-field="phone"][data-id="${taskId}"]`)?.value?.trim() || "";
+    const status = document.querySelector(`select[data-field="status"][data-id="${taskId}"]`)?.value || "a-fazer";
+
+    savingTasks.add(taskId);
+    renderBoard();
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao salvar (HTTP ${res.status})`);
+      }
+      state[taskId] = await res.json();
+      editingTasks.delete(taskId);
+    } catch (e) {
+      showError(e.message || "Não foi possível salvar. Tente novamente.");
+    } finally {
+      savingTasks.delete(taskId);
+      renderBoard();
+    }
+  }
+
+  async function clearTask(taskId) {
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao limpar (HTTP ${res.status})`);
+      }
+      delete state[taskId];
+      editingTasks.delete(taskId);
+    } catch (e) {
+      showError(e.message || "Não foi possível limpar a tarefa. Tente novamente.");
+    } finally {
+      renderBoard();
+    }
+  }
+
+  async function loadState() {
+    document.getElementById("progressLabel").textContent = "atualizando...";
+    try {
+      const res = await fetch("/api/state", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      state = await res.json();
+      showError(null);
+    } catch (e) {
+      showError("Não foi possível conectar ao servidor. Tentando de novo em instantes...");
+    }
+    renderBoard();
+  }
+
+  document.getElementById("filterRow").addEventListener("click", (e) => {
+    const chip = e.target.closest(".filter-chip");
+    if (!chip) return;
+    activeFilter = chip.dataset.p;
+    document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    renderBoard();
+  });
+
+  loadState();
+  setInterval(loadState, 18000);
+</script>
+</body>
+</html>
