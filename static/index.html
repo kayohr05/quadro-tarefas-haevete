@@ -9,120 +9,126 @@
 
 <style>
   :root {
-    --cork: #C9A876;
-    --paper: #FBF7EE;
-    --paper-edge: #EFE6D2;
-    --navy: #1F3864;
-    --navy-ink: #16294a;
-    --gold: #B8860B;
-    --ink: #2B2620;
-    --muted: #6B6255;
+    --bg: oklch(90% 0.012 80);
+    --panel: oklch(94% 0.012 80);
+    --surface: oklch(99% 0.003 80);
+    --border: oklch(82% 0.014 80);
+    --ink: #262320;
+    --muted: #6E695F;
+    --accent: oklch(46% 0.11 255);
+    --accent-ink: oklch(38% 0.11 255);
+    --accent-bg: oklch(90% 0.025 255);
 
-    --urgente: #B4453A;   --urgente-bg: #F7E1DE;
-    --alta: #A67C00;      --alta-bg: #FBEEC9;
-    --media: #2B5D8C;     --media-bg: #DCE9F5;
-    --baixa: #6B6B6B;     --baixa-bg: #E7E5E1;
+    --urgente: oklch(48% 0.15 25);    --urgente-bg: oklch(90% 0.04 25);
+    --alta: oklch(50% 0.13 75);       --alta-bg: oklch(90% 0.04 75);
+    --media: oklch(48% 0.11 250);     --media-bg: oklch(90% 0.03 250);
+    --baixa: oklch(48% 0.01 250);     --baixa-bg: oklch(88% 0.008 250);
 
-    --doing: #2B5D8C; --doing-bg: #E4EEF6;
-    --done: #4C7A52;  --done-bg: #E8F0E8;
-    --todo-bg: #FBEEDB;
+    --doing: oklch(48% 0.11 250); --doing-bg: oklch(90% 0.03 250);
+    --done: oklch(45% 0.1 150);   --done-bg: oklch(90% 0.04 150);
+    --todo-bg: oklch(90% 0.04 75);
   }
 
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 24px 12px; background: #EFE9DC; }
+  body { margin: 0; padding: 24px 12px; background: var(--bg); }
 
   .board-wrap {
     font-family: 'Inter', sans-serif;
-    background:
-      radial-gradient(circle at 20% 15%, rgba(255,255,255,0.10) 0, transparent 45%),
-      radial-gradient(circle at 80% 85%, rgba(0,0,0,0.06) 0, transparent 50%),
-      var(--cork);
-    background-color: var(--cork);
+    background: var(--panel);
     border-radius: 18px;
     padding: 28px 24px 34px;
     position: relative;
     overflow: hidden;
     max-width: 1100px;
     margin: 0 auto;
-  }
-
-  .board-wrap::before {
-    content: "";
-    position: absolute; inset: 0;
-    background-image: radial-gradient(rgba(0,0,0,0.08) 1px, transparent 1.2px);
-    background-size: 14px 14px; opacity: 0.5; pointer-events: none;
+    border: 1px solid var(--border);
   }
 
   .board-header { position: relative; z-index: 1; text-align: center; margin-bottom: 18px; }
-  .eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--navy-ink); font-weight: 700; opacity: 0.75; }
-  .board-title { font-family: 'Fraunces', serif; font-weight: 700; font-style: italic; font-size: 30px; color: var(--navy-ink); margin: 4px 0 6px; }
-  .board-sub { font-size: 14px; color: var(--ink); opacity: 0.75; max-width: 540px; margin: 0 auto; }
+  .board-logo { width: 72px; height: auto; margin: 0 auto 10px; display: block; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .board-title { font-family: 'Fraunces', serif; font-weight: 700; font-style: italic; font-size: 30px; color: var(--ink); margin: 4px 0 6px; }
+  .board-sub { font-size: 14px; color: var(--muted); max-width: 540px; margin: 0 auto; }
 
   .progress-shell {
     position: relative; z-index: 1; max-width: 420px; margin: 16px auto 0;
-    background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5);
+    background: var(--surface); border: 1px solid var(--border);
     border-radius: 999px; padding: 4px;
   }
-  .progress-bar { height: 10px; border-radius: 999px; background: linear-gradient(90deg, var(--done), #6FA377); width: 0%; transition: width 0.6s ease; }
-  .progress-label { text-align: center; font-size: 12.5px; color: var(--navy-ink); font-weight: 600; margin-top: 6px; position: relative; z-index: 1; }
+  .progress-bar { height: 10px; border-radius: 999px; background: var(--done); width: 0%; transition: width 0.6s ease; }
+  .progress-label { text-align: center; font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 6px; position: relative; z-index: 1; }
 
   .error-strip {
     position: relative; z-index: 1; max-width: 640px; margin: 12px auto 0;
-    background: var(--urgente-bg); border: 1px dashed var(--urgente); border-radius: 10px;
-    padding: 8px 14px; font-size: 12.5px; color: #6B2A22; text-align: center; display: none;
+    background: var(--urgente-bg); border: 1px solid var(--urgente); border-radius: 10px;
+    padding: 8px 14px; font-size: 12.5px; color: var(--urgente); text-align: center; display: none;
   }
   .error-strip.visible { display: block; }
 
-  .filter-row {
+  .search-bar {
+    position: relative; z-index: 1; max-width: 360px; margin: 16px auto 0;
+  }
+  .search-bar input {
+    width: 100%; padding: 8px 14px 8px 32px; border-radius: 999px;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--ink); font-family: 'Inter', sans-serif; font-size: 12.5px;
+  }
+  .search-bar input::placeholder { color: var(--muted); }
+  .search-bar input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; opacity: 0.75; pointer-events: none;
+  }
+
+  .filter-selects {
     position: relative; z-index: 1; display: flex; justify-content: center;
-    flex-wrap: wrap; gap: 8px; margin: 18px 0 6px;
+    flex-wrap: wrap; gap: 10px; margin: 18px 0 0;
   }
-  .filter-chip {
-    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
-    padding: 6px 14px; border-radius: 999px; cursor: pointer;
-    border: 1.5px solid transparent; background: rgba(255,255,255,0.5); color: var(--navy-ink);
+  .filter-select {
+    font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 700;
+    padding: 7px 14px; border-radius: 999px; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--ink);
   }
-  .filter-chip.active { background: var(--navy-ink); color: white; }
-  .filter-chip[data-p="urgente"].active { background: var(--urgente); }
-  .filter-chip[data-p="alta"].active { background: var(--alta); }
-  .filter-chip[data-p="media"].active { background: var(--media); }
-  .filter-chip[data-p="baixa"].active { background: var(--baixa); }
+  .filter-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .filter-select option { color: #1a1a1a; }
+
+  .whatsapp-invite {
+    position: relative; z-index: 1; text-align: center; font-size: 11.5px;
+    color: var(--muted); margin: 12px auto 2px; max-width: 480px;
+  }
+  .whatsapp-invite a { color: var(--done); font-weight: 700; text-decoration: underline; }
+  .whatsapp-invite a:hover { color: var(--accent-ink); }
 
   .cat-heading {
     position: relative; z-index: 1; font-family: 'Fraunces', serif; font-weight: 700;
-    color: var(--paper); font-size: 16px; margin: 26px 6px 12px;
+    color: var(--ink); font-size: 16px; margin: 26px 6px 12px;
     display: flex; align-items: center; gap: 10px;
   }
-  .cat-heading .line { flex: 1; height: 1px; background: rgba(255,255,255,0.35); }
+  .cat-heading .line { flex: 1; height: 1px; background: var(--border); }
 
   .cards-grid {
     position: relative; z-index: 1; display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 22px 18px; margin-bottom: 8px;
+    gap: 18px; margin-bottom: 8px;
   }
 
   .card {
-    background: var(--paper); border-radius: 3px; padding: 18px 16px 16px;
-    box-shadow: 0 6px 14px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.4) inset;
-    position: relative; transition: transform 0.15s ease, opacity 0.15s ease;
+    background: var(--surface); border-radius: 10px; padding: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 6px rgba(30,25,15,0.08);
+    position: relative; transition: box-shadow 0.15s ease, transform 0.15s ease;
   }
-  .card:hover { transform: translateY(-2px) rotate(0deg) !important; }
-  .card::after {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(180deg, transparent 92%, var(--paper-edge) 100%);
-    pointer-events: none;
-  }
+  .card:hover { box-shadow: 0 6px 16px rgba(30,25,15,0.12); transform: translateY(-1px); }
   .card.hidden { display: none; }
 
   .pin {
-    position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
-    width: 15px; height: 15px; border-radius: 50%;
-    box-shadow: 0 2px 3px rgba(0,0,0,0.4); z-index: 2;
+    position: absolute; top: 14px; right: 14px;
+    width: 8px; height: 8px; border-radius: 50%;
   }
-  .pin.urgente { background: radial-gradient(circle at 35% 30%, #E07A6F, var(--urgente)); }
-  .pin.alta { background: radial-gradient(circle at 35% 30%, #F0CB63, var(--alta)); }
-  .pin.media { background: radial-gradient(circle at 35% 30%, #6E9FCB, var(--media)); }
-  .pin.baixa { background: radial-gradient(circle at 35% 30%, #ACACAC, var(--baixa)); }
+  .pin.urgente { background: var(--urgente); }
+  .pin.alta { background: var(--alta); }
+  .pin.media { background: var(--media); }
+  .pin.baixa { background: var(--baixa); }
 
   .priority-tag {
     display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
@@ -133,73 +139,85 @@
   .priority-tag.media { background: var(--media-bg); color: var(--media); }
   .priority-tag.baixa { background: var(--baixa-bg); color: var(--baixa); }
 
-  .card-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 16px; color: var(--ink); margin: 4px 0 6px; }
+  .card-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 16px; color: var(--ink); margin: 4px 22px 6px 0; }
   .card-desc { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-bottom: 10px; min-height: 34px; }
 
   .card-help {
-    font-size: 11.5px; color: var(--navy); background: #F0EDE3; border-left: 3px solid var(--gold);
+    font-size: 11.5px; color: var(--accent-ink); background: var(--accent-bg); border-left: 3px solid var(--accent);
     padding: 6px 8px; border-radius: 4px; margin-bottom: 10px; line-height: 1.4; font-style: italic;
   }
 
   .locked-box {
-    background: #F5F1E6; border: 1px solid #E4D9BF; border-radius: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
     padding: 10px 12px; margin-top: 4px; position: relative;
   }
   .locked-row { font-size: 12.5px; color: var(--ink); margin-bottom: 4px; }
   .locked-row .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; display: block; }
   .edit-pencil {
-    position: absolute; top: 8px; right: 8px; background: white; border: 1px solid #DED2B8;
+    position: absolute; top: 8px; right: 8px; background: var(--surface); border: 1px solid var(--border);
     border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px;
     display: flex; align-items: center; justify-content: center;
   }
-  .edit-pencil:hover { border-color: var(--navy); }
+  .edit-pencil:hover { border-color: var(--accent); }
   .btn-cancel {
-    background: transparent; color: var(--muted); border: 1px solid #D8CDB8;
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
     width: 100%; margin-top: 6px; padding: 6px 10px; border-radius: 6px;
     font-size: 11.5px; font-family: 'Inter', sans-serif; cursor: pointer;
   }
-  .btn-cancel:hover { color: var(--navy); border-color: var(--navy); }
+  .btn-cancel:hover { color: var(--accent); border-color: var(--accent); }
 
   .more-details-btn {
     background: none; border: none; color: var(--muted); font-size: 11px;
     text-decoration: underline; cursor: pointer; font-family: 'Inter', sans-serif;
     padding: 0; margin: -4px 0 10px; display: block;
   }
-  .more-details-btn:hover { color: var(--navy); }
+  .more-details-btn:hover { color: var(--accent); }
   .detail-box {
-    background: #F5F1E6; border: 1px solid #E4D9BF; border-radius: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
     padding: 10px 12px; margin-bottom: 10px; font-size: 12px; color: var(--ink);
     line-height: 1.5;
   }
 
-  .status-badge { display: inline-block; font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 5px 9px; margin-bottom: 10px; }
+  .status-badge {
+    display: inline-block; font-size: 11.5px; font-weight: 700; border-radius: 6px;
+    padding: 5px 9px; margin-bottom: 10px; cursor: pointer; user-select: none;
+    border: none; font-family: 'Inter', sans-serif;
+  }
+  .status-badge:hover { filter: brightness(0.95); }
   .status-badge.a-fazer { background: var(--todo-bg); color: var(--alta); }
   .status-badge.em-andamento { background: var(--doing-bg); color: var(--doing); }
   .status-badge.concluido { background: var(--done-bg); color: var(--done); }
 
   .field-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; margin: 8px 0 3px; }
   .card input, .card select {
-    width: 100%; border: 1px solid #DED2B8; border-radius: 6px; padding: 7px 8px;
-    font-size: 12.5px; font-family: 'Inter', sans-serif; background: #fff; margin-bottom: 2px;
+    width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px;
+    font-size: 12.5px; font-family: 'Inter', sans-serif; background: var(--surface); margin-bottom: 2px; color: var(--ink);
   }
-  .card input:focus, .card select:focus { outline: 2px solid var(--navy); outline-offset: 1px; }
+  .card input:focus, .card select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .card input.invalid, .card select.invalid { border-color: var(--urgente); background: var(--urgente-bg); }
+
+  .field-error {
+    display: none; font-size: 10.5px; color: var(--urgente); font-weight: 700;
+    margin: -1px 0 6px;
+  }
+  .field-error.visible { display: block; }
 
   .btn {
     border: none; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 700;
     font-family: 'Inter', sans-serif; cursor: pointer; white-space: nowrap; width: 100%; margin-top: 10px;
   }
   .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-save { background: var(--navy); color: white; }
-  .btn-save:hover { background: var(--navy-ink); }
+  .btn-save { background: var(--accent); color: white; }
+  .btn-save:hover { background: var(--accent-ink); }
   .btn-clear {
-    background: transparent; color: var(--muted); border: 1px solid #D8CDB8;
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
     width: 100%; margin-top: 6px; padding: 6px 10px; border-radius: 6px;
     font-size: 11.5px; font-family: 'Inter', sans-serif; cursor: pointer;
   }
   .btn-clear:hover { color: var(--urgente); border-color: var(--urgente); }
 
-  .footer-note { position: relative; z-index: 1; text-align: center; font-size: 11.5px; color: rgba(43,38,32,0.6); margin-top: 20px; }
-  .refresh-btn { display: block; margin: 4px auto 0; background: none; border: none; text-decoration: underline; font-size: 11.5px; color: var(--navy-ink); cursor: pointer; font-family: 'Inter', sans-serif; }
+  .footer-note { position: relative; z-index: 1; text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 20px; }
+  .refresh-btn { display: block; margin: 4px auto 0; background: none; border: none; text-decoration: underline; font-size: 11.5px; color: var(--muted); cursor: pointer; font-family: 'Inter', sans-serif; }
 
   @media (max-width: 480px) {
     .board-title { font-size: 24px; }
@@ -211,6 +229,7 @@
 
 <div class="board-wrap" id="board">
   <div class="board-header">
+    <img class="board-logo" src="/static/logo-haevete.png" alt="Ha'evete Camping Club">
     <div class="eyebrow">Ha'evete &middot; Missão em ação</div>
     <div class="board-title">Quadro de Tarefas</div>
     <div class="board-sub">Família Bruno, Pri, Manu e Matheus — escolha uma tarefa, deixe seu nome e celular, e marque o andamento.</div>
@@ -220,12 +239,28 @@
   <div class="progress-label" id="progressLabel">carregando...</div>
   <div class="error-strip" id="errorStrip"></div>
 
-  <div class="filter-row" id="filterRow">
-    <div class="filter-chip active" data-p="todas">Todas</div>
-    <div class="filter-chip" data-p="urgente">Urgente</div>
-    <div class="filter-chip" data-p="alta">Alta</div>
-    <div class="filter-chip" data-p="media">Média</div>
-    <div class="filter-chip" data-p="baixa">Baixa</div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Buscar por tarefa ou responsável...">
+  </div>
+
+  <div class="filter-selects">
+    <select id="priorityFilter" class="filter-select">
+      <option value="todas">Prioridade: Todas</option>
+      <option value="urgente">Prioridade: Urgente</option>
+      <option value="alta">Prioridade: Alta</option>
+      <option value="media">Prioridade: Média</option>
+      <option value="baixa">Prioridade: Baixa</option>
+    </select>
+    <select id="ownerFilter" class="filter-select">
+      <option value="todas">Responsáveis: Todas</option>
+      <option value="sem-responsavel">Sem responsável</option>
+      <option value="com-responsavel">Com responsável</option>
+    </select>
+  </div>
+
+  <div class="whatsapp-invite">
+    💬 Ficou responsável por uma tarefa? <a href="https://chat.whatsapp.com/JIgYb929PrO9qxKp6B63eC?s=cl&p=a&mlu=4&amv=3" target="_blank" rel="noopener">Entre no grupo do WhatsApp</a> e acompanhe tudo por lá.
   </div>
 
   <div id="categoriesContainer"></div>
@@ -239,6 +274,9 @@
 <script>
   const PRIORITY_LABELS = { urgente: "Prioridade: Urgente", alta: "Prioridade: Alta", media: "Prioridade: Média", baixa: "Prioridade: Baixa" };
   const STATUS_LABELS = { "a-fazer": "A fazer", "em-andamento": "Em andamento", "concluido": "Concluído" };
+  const STATUS_CYCLE = { "a-fazer": "em-andamento", "em-andamento": "concluido", "concluido": "a-fazer" };
+  const LABOR_LABELS = { "nao-se-aplica": "Não se aplica", "vou-executar": "Vou executar", "vou-encontrar": "Vou encontrar alguém para executar" };
+  const FINANCE_LABELS = { "nao-se-aplica": "Não se aplica", "doar-parcial": "Vou doar parcialmente e encontrar mais doadores", "encontrar-doadores": "Vou encontrar doadores", "doar-integral": "Vou doar integralmente" };
   const CATEGORY_NAMES = { casa: "Casa", familia: "Família (geral)", pri: "Pri (mãe)", matheus: "Matheus (9 anos)", manu: "Manu (13 anos)", bruno: "Bruno (pai)" };
   const CATEGORY_ORDER = ["matheus", "pri", "bruno", "familia", "manu", "casa"];
 
@@ -328,9 +366,24 @@
 
   let state = {};
   let activeFilter = "todas";
+  let activeOwnerFilter = "todas";
+  let searchQuery = "";
   let editingTasks = new Set();
   let expandedTasks = new Set();
   let savingTasks = new Set();
+
+  function taskMatchesFilters(task, entry, hasOwner) {
+    if (activeFilter !== "todas" && task.pri !== activeFilter) return false;
+    if (activeOwnerFilter === "sem-responsavel" && hasOwner) return false;
+    if (activeOwnerFilter === "com-responsavel" && !hasOwner) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchesTitle = task.title.toLowerCase().includes(q);
+      const matchesName = (entry.name || "").toLowerCase().includes(q);
+      if (!matchesTitle && !matchesName) return false;
+    }
+    return true;
+  }
 
   function renderBoard() {
     const container = document.getElementById("categoriesContainer");
@@ -339,6 +392,12 @@
     CATEGORY_ORDER.forEach(cat => {
       const catTasks = tasks.filter(t => t.cat === cat);
       if (!catTasks.length) return;
+
+      const visibleTasks = catTasks.filter(task => {
+        const entry = state[task.id] || { name: "", phone: "", status: "a-fazer", labor: "", finance: "" };
+        return taskMatchesFilters(task, entry, !!(entry.name || entry.phone));
+      });
+      if (!visibleTasks.length) return;
 
       const heading = document.createElement("div");
       heading.className = "cat-heading";
@@ -349,21 +408,42 @@
       grid.className = "cards-grid";
 
       catTasks.forEach(task => {
-        const entry = state[task.id] || { name: "", phone: "", status: "a-fazer" };
+        const entry = state[task.id] || { name: "", phone: "", status: "a-fazer", labor: "", finance: "" };
         const hasOwner = !!(entry.name || entry.phone);
         const isEditing = editingTasks.has(task.id) || !hasOwner;
         const isSaving = savingTasks.has(task.id);
         const card = document.createElement("div");
         card.className = "card";
         card.dataset.priority = task.pri;
-        if (activeFilter !== "todas" && task.pri !== activeFilter) card.classList.add("hidden");
+        if (!taskMatchesFilters(task, entry, hasOwner)) card.classList.add("hidden");
 
         const formOrLocked = isEditing ? `
           <div class="field-label">Nome</div>
           <input type="text" placeholder="Seu nome" maxlength="40" data-field="name" data-id="${task.id}" value="${escapeAttr(entry.name)}" />
+          <div class="field-error" data-error-for="name" data-id="${task.id}">Campo obrigatório</div>
 
           <div class="field-label">Celular (com DDD)</div>
           <input type="tel" placeholder="(11) 91234-5678" maxlength="20" data-field="phone" data-id="${task.id}" value="${escapeAttr(entry.phone)}" />
+          <div class="field-error" data-error-for="phone" data-id="${task.id}">Campo obrigatório</div>
+
+          <div class="field-label">Mão de obra</div>
+          <select data-field="labor" data-id="${task.id}">
+            <option value="" ${!entry.labor ? "selected" : ""}>— selecione uma opção —</option>
+            <option value="nao-se-aplica" ${entry.labor === "nao-se-aplica" ? "selected" : ""}>Não se aplica</option>
+            <option value="vou-executar" ${entry.labor === "vou-executar" ? "selected" : ""}>Vou executar</option>
+            <option value="vou-encontrar" ${entry.labor === "vou-encontrar" ? "selected" : ""}>Vou encontrar alguém para executar</option>
+          </select>
+          <div class="field-error" data-error-for="labor" data-id="${task.id}">Campo obrigatório</div>
+
+          <div class="field-label">Financeiro</div>
+          <select data-field="finance" data-id="${task.id}">
+            <option value="" ${!entry.finance ? "selected" : ""}>— selecione uma opção —</option>
+            <option value="nao-se-aplica" ${entry.finance === "nao-se-aplica" ? "selected" : ""}>Não se aplica</option>
+            <option value="doar-parcial" ${entry.finance === "doar-parcial" ? "selected" : ""}>Vou doar parcialmente e encontrar mais doadores</option>
+            <option value="encontrar-doadores" ${entry.finance === "encontrar-doadores" ? "selected" : ""}>Vou encontrar doadores</option>
+            <option value="doar-integral" ${entry.finance === "doar-integral" ? "selected" : ""}>Vou doar integralmente</option>
+          </select>
+          <div class="field-error" data-error-for="finance" data-id="${task.id}">Campo obrigatório</div>
 
           <div class="field-label">Status</div>
           <select data-field="status" data-id="${task.id}">
@@ -371,6 +451,7 @@
             <option value="em-andamento" ${entry.status === "em-andamento" ? "selected" : ""}>Em andamento</option>
             <option value="concluido" ${entry.status === "concluido" ? "selected" : ""}>Concluído</option>
           </select>
+          <div class="field-error" data-error-for="status" data-id="${task.id}">Campo obrigatório</div>
 
           <button class="btn btn-save" data-id="${task.id}" ${isSaving ? "disabled" : ""}>${isSaving ? "Salvando..." : "Salvar"}</button>
           ${hasOwner ? `<button class="btn-cancel" data-action="cancel" data-id="${task.id}">cancelar</button>` : ""}
@@ -380,6 +461,8 @@
             <button class="edit-pencil" data-action="edit" data-id="${task.id}" title="Editar">✏️</button>
             <div class="locked-row"><span class="lbl">Nome</span>${escapeAttr(entry.name) || "—"}</div>
             <div class="locked-row"><span class="lbl">Celular</span>${escapeAttr(entry.phone) || "—"}</div>
+            ${entry.labor ? `<div class="locked-row"><span class="lbl">Mão de obra</span>${LABOR_LABELS[entry.labor]}</div>` : ""}
+            ${entry.finance ? `<div class="locked-row"><span class="lbl">Financeiro</span>${FINANCE_LABELS[entry.finance]}</div>` : ""}
           </div>
         `;
 
@@ -393,7 +476,7 @@
           <div class="card-help">Você pode fazer direto ou buscar quem tenha o recurso ou a habilidade certa. Só precisa de um dono para avançar.</div>
           <button class="more-details-btn" data-action="toggle-detail" data-id="${task.id}">${isExpanded ? "ocultar detalhes" : "+ mais detalhes"}</button>
           ${isExpanded ? `<div class="detail-box">${task.detail}</div>` : ""}
-          <span class="status-badge ${entry.status}">${STATUS_LABELS[entry.status]}</span>
+          <span class="status-badge ${entry.status}" data-id="${task.id}" title="Clique para mudar o status">${STATUS_LABELS[entry.status]}</span>
           ${formOrLocked}
         `;
         grid.appendChild(card);
@@ -415,6 +498,18 @@
       const id = btn.dataset.id;
       if (expandedTasks.has(id)) expandedTasks.delete(id); else expandedTasks.add(id);
       renderBoard();
+    }));
+    container.querySelectorAll('select[data-field="status"]').forEach(sel => sel.addEventListener("change", (e) => {
+      const card = e.target.closest(".card");
+      const badge = card?.querySelector(".status-badge");
+      if (!badge) return;
+      const newStatus = e.target.value;
+      badge.className = `status-badge ${newStatus}`;
+      badge.textContent = STATUS_LABELS[newStatus];
+    }));
+    container.querySelectorAll(".status-badge").forEach(badge => badge.addEventListener("click", () => cycleStatus(badge.dataset.id)));
+    container.querySelectorAll("[data-field]").forEach(el => el.addEventListener("input", () => {
+      if (el.value.trim()) setFieldValidity(el.dataset.id, el.dataset.field, true);
     }));
 
     updateProgress();
@@ -447,10 +542,28 @@
     return d.innerHTML.replace(/"/g, "&quot;");
   }
 
+  function setFieldValidity(taskId, field, isValid) {
+    const el = document.querySelector(`[data-field="${field}"][data-id="${taskId}"]`);
+    const errorEl = document.querySelector(`.field-error[data-error-for="${field}"][data-id="${taskId}"]`);
+    if (el) el.classList.toggle("invalid", !isValid);
+    if (errorEl) errorEl.classList.toggle("visible", !isValid);
+  }
+
   async function saveTask(taskId) {
     const name = document.querySelector(`input[data-field="name"][data-id="${taskId}"]`)?.value?.trim() || "";
     const phone = document.querySelector(`input[data-field="phone"][data-id="${taskId}"]`)?.value?.trim() || "";
-    const status = document.querySelector(`select[data-field="status"][data-id="${taskId}"]`)?.value || "a-fazer";
+    const status = document.querySelector(`select[data-field="status"][data-id="${taskId}"]`)?.value || "";
+    const labor = document.querySelector(`select[data-field="labor"][data-id="${taskId}"]`)?.value || "";
+    const finance = document.querySelector(`select[data-field="finance"][data-id="${taskId}"]`)?.value || "";
+
+    const fields = { name, phone, labor, finance, status };
+    let allValid = true;
+    for (const [field, value] of Object.entries(fields)) {
+      const isValid = !!value;
+      setFieldValidity(taskId, field, isValid);
+      if (!isValid) allValid = false;
+    }
+    if (!allValid) return;
 
     savingTasks.add(taskId);
     renderBoard();
@@ -458,7 +571,7 @@
       const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, status }),
+        body: JSON.stringify({ name, phone, status, labor, finance }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -470,6 +583,45 @@
       showError(e.message || "Não foi possível salvar. Tente novamente.");
     } finally {
       savingTasks.delete(taskId);
+      renderBoard();
+    }
+  }
+
+  function cycleStatus(taskId) {
+    const badge = document.querySelector(`.status-badge[data-id="${taskId}"]`);
+    if (!badge) return;
+    const current = Object.keys(STATUS_LABELS).find(s => badge.classList.contains(s)) || "a-fazer";
+    const next = STATUS_CYCLE[current];
+    badge.className = `status-badge ${next}`;
+    badge.dataset.id = taskId;
+    badge.textContent = STATUS_LABELS[next];
+
+    const select = document.querySelector(`select[data-field="status"][data-id="${taskId}"]`);
+    if (select) {
+      select.value = next;
+      setFieldValidity(taskId, "status", true);
+    } else {
+      quickUpdateStatus(taskId, next);
+    }
+  }
+
+  async function quickUpdateStatus(taskId, newStatus) {
+    const entry = state[taskId];
+    if (!entry) return;
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: entry.name, phone: entry.phone, status: newStatus, labor: entry.labor, finance: entry.finance }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao atualizar status (HTTP ${res.status})`);
+      }
+      state[taskId] = await res.json();
+    } catch (e) {
+      showError(e.message || "Não foi possível atualizar o status. Tente novamente.");
+    } finally {
       renderBoard();
     }
   }
@@ -503,12 +655,18 @@
     renderBoard();
   }
 
-  document.getElementById("filterRow").addEventListener("click", (e) => {
-    const chip = e.target.closest(".filter-chip");
-    if (!chip) return;
-    activeFilter = chip.dataset.p;
-    document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
+  document.getElementById("priorityFilter").addEventListener("change", (e) => {
+    activeFilter = e.target.value;
+    renderBoard();
+  });
+
+  document.getElementById("ownerFilter").addEventListener("change", (e) => {
+    activeOwnerFilter = e.target.value;
+    renderBoard();
+  });
+
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
     renderBoard();
   });
 

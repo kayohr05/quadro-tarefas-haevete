@@ -18,16 +18,25 @@ VALID_IDS = {
     "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11",
 }
 VALID_STATUS = {"a-fazer", "em-andamento", "concluido"}
+VALID_LABOR = {"nao-se-aplica", "vou-executar", "vou-encontrar"}
+VALID_FINANCE = {"nao-se-aplica", "doar-parcial", "encontrar-doadores", "doar-integral"}
 
 # Tarefa 21/f3 (LOAS e Bolsa Família) já nasce atribuída ao Kayo.
 DEFAULT_STATE = {
-    "f3": {"name": "Kayo", "phone": "", "status": "em-andamento", "ts": 0},
+    "f3": {
+        "name": "Kayo",
+        "phone": "",
+        "status": "em-andamento",
+        "labor": "vou-executar",
+        "finance": "nao-se-aplica",
+        "ts": 0,
+    },
 }
 
 RATE_LIMIT_WINDOW_SECONDS = 60
 RATE_LIMIT_MAX_REQUESTS = 20
 
-app = Flask(__name__, static_folder=None)
+app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
 _hits: dict[str, dict[str, float]] = {}
 
 
@@ -90,9 +99,21 @@ def set_task_state(task_id: str):
     body = request.get_json(silent=True) or {}
     name = str(body.get("name", "")).strip()[:60]
     phone = str(body.get("phone", "")).strip()[:30]
-    status = body.get("status") if body.get("status") in VALID_STATUS else "a-fazer"
+    status = body.get("status")
+    labor = body.get("labor")
+    finance = body.get("finance")
 
-    state[task_id] = {"name": name, "phone": phone, "status": status, "ts": int(time.time() * 1000)}
+    if not name or not phone or status not in VALID_STATUS or labor not in VALID_LABOR or finance not in VALID_FINANCE:
+        return jsonify({"error": "Preencha nome, celular, mão de obra, financeiro e status antes de salvar."}), 400
+
+    state[task_id] = {
+        "name": name,
+        "phone": phone,
+        "status": status,
+        "labor": labor,
+        "finance": finance,
+        "ts": int(time.time() * 1000),
+    }
     save_state(state)
     return jsonify(state[task_id])
 
