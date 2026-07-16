@@ -385,7 +385,41 @@
     return true;
   }
 
+  function captureFormState() {
+    const snapshot = {};
+    document.querySelectorAll("#categoriesContainer [data-field][data-id]").forEach(el => {
+      snapshot[`${el.dataset.field}|${el.dataset.id}`] = el.value;
+    });
+    const active = document.activeElement;
+    let activeKey = null;
+    let selection = null;
+    if (active && active.dataset && active.dataset.field && active.dataset.id) {
+      activeKey = `${active.dataset.field}|${active.dataset.id}`;
+      if (typeof active.selectionStart === "number") selection = [active.selectionStart, active.selectionEnd];
+    }
+    return { snapshot, activeKey, selection };
+  }
+
+  function restoreFormState(captured) {
+    if (!captured) return;
+    const { snapshot, activeKey, selection } = captured;
+    Object.entries(snapshot).forEach(([key, value]) => {
+      const [field, id] = key.split("|");
+      const el = document.querySelector(`#categoriesContainer [data-field="${field}"][data-id="${id}"]`);
+      if (el) el.value = value;
+    });
+    if (activeKey) {
+      const [field, id] = activeKey.split("|");
+      const el = document.querySelector(`#categoriesContainer [data-field="${field}"][data-id="${id}"]`);
+      if (el) {
+        el.focus();
+        if (selection && typeof el.setSelectionRange === "function") el.setSelectionRange(selection[0], selection[1]);
+      }
+    }
+  }
+
   function renderBoard() {
+    const formState = captureFormState();
     const container = document.getElementById("categoriesContainer");
     container.innerHTML = "";
 
@@ -513,6 +547,7 @@
     }));
 
     updateProgress();
+    restoreFormState(formState);
   }
 
   function updateProgress() {
