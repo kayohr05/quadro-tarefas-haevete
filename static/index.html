@@ -155,10 +155,10 @@
   .locked-row .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 700; display: block; }
   .edit-pencil {
     position: absolute; top: 8px; right: 8px; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px;
+    border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: var(--muted);
     display: flex; align-items: center; justify-content: center;
   }
-  .edit-pencil:hover { border-color: var(--accent); }
+  .edit-pencil:hover { border-color: var(--accent); color: var(--accent-ink); }
   .btn-cancel {
     background: transparent; color: var(--muted); border: 1px solid var(--border);
     width: 100%; margin-top: 6px; padding: 6px 10px; border-radius: 6px;
@@ -215,6 +215,30 @@
     font-size: 11.5px; font-family: 'Inter', sans-serif; cursor: pointer;
   }
   .btn-clear:hover { color: var(--urgente); border-color: var(--urgente); }
+
+  .btn-secondary {
+    background: var(--surface); color: var(--accent-ink); border: 1.5px solid var(--accent);
+    width: 100%; margin-top: 10px; padding: 8px 12px; border-radius: 6px;
+    font-size: 12px; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer;
+  }
+  .btn-secondary:hover { background: var(--accent-bg); }
+  .btn-secondary:disabled {
+    background: var(--panel); color: var(--muted); border-color: var(--border);
+    cursor: not-allowed; opacity: 0.8;
+  }
+  .btn-secondary:disabled:hover { background: var(--panel); }
+
+  .sub-heading {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
+    font-weight: 700; margin: 14px 0 4px; border-top: 1px dashed var(--border); padding-top: 10px;
+  }
+
+  .aux-row {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; margin-top: 8px; position: relative;
+  }
+
+  .aux-limit-note { font-size: 11px; color: var(--muted); text-align: center; margin-top: 10px; font-style: italic; }
 
   .footer-note { position: relative; z-index: 1; text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 20px; }
   .refresh-btn { display: block; margin: 4px auto 0; background: none; border: none; text-decoration: underline; font-size: 11.5px; color: var(--muted); cursor: pointer; font-family: 'Inter', sans-serif; }
@@ -277,6 +301,8 @@
   const STATUS_CYCLE = { "a-fazer": "em-andamento", "em-andamento": "concluido", "concluido": "a-fazer" };
   const LABOR_LABELS = { "nao-se-aplica": "Não se aplica", "vou-executar": "Vou executar", "vou-encontrar": "Vou encontrar alguém para executar" };
   const FINANCE_LABELS = { "nao-se-aplica": "Não se aplica", "doar-parcial": "Vou doar parcialmente e encontrar mais doadores", "encontrar-doadores": "Vou encontrar doadores", "doar-integral": "Vou doar integralmente" };
+  const AUX_TIPO_LABELS = { "mao-de-obra": "Mão de obra", "financeiro": "Financeiro", "ambos": "Mão de obra + financeiro" };
+  const MAX_AUXILIARES = 3;
   const CATEGORY_NAMES = { casa: "Casa", familia: "Família (geral)", pri: "Pri (mãe)", matheus: "Matheus (9 anos)", manu: "Manu (13 anos)", bruno: "Bruno (pai)" };
   const CATEGORY_ORDER = ["matheus", "pri", "bruno", "familia", "manu", "casa"];
 
@@ -368,19 +394,33 @@
   let activeFilter = "todas";
   let activeOwnerFilter = "todas";
   let searchQuery = "";
-  let editingTasks = new Set();
+  let respFormOpen = new Set();
+  let savingResp = new Set();
+  let auxFormOpen = new Set();
+  let savingAux = new Set();
+  let auxEditOpen = new Set();
+  let savingAuxEdit = new Set();
   let expandedTasks = new Set();
-  let savingTasks = new Set();
 
-  function taskMatchesFilters(task, entry, hasOwner) {
+  function emptyEntry() {
+    return { status: "a-fazer", responsavel: null, auxiliares: [] };
+  }
+
+  function auxKey(taskId, auxId) {
+    return `${taskId}::${auxId}`;
+  }
+
+  function taskMatchesFilters(task, entry) {
+    const hasResponsavel = !!entry.responsavel;
     if (activeFilter !== "todas" && task.pri !== activeFilter) return false;
-    if (activeOwnerFilter === "sem-responsavel" && hasOwner) return false;
-    if (activeOwnerFilter === "com-responsavel" && !hasOwner) return false;
+    if (activeOwnerFilter === "sem-responsavel" && hasResponsavel) return false;
+    if (activeOwnerFilter === "com-responsavel" && !hasResponsavel) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchesTitle = task.title.toLowerCase().includes(q);
-      const matchesName = (entry.name || "").toLowerCase().includes(q);
-      if (!matchesTitle && !matchesName) return false;
+      const matchesRespName = (entry.responsavel?.name || "").toLowerCase().includes(q);
+      const matchesAuxName = (entry.auxiliares || []).some(a => (a.name || "").toLowerCase().includes(q));
+      if (!matchesTitle && !matchesRespName && !matchesAuxName) return false;
     }
     return true;
   }
@@ -428,8 +468,8 @@
       if (!catTasks.length) return;
 
       const visibleTasks = catTasks.filter(task => {
-        const entry = state[task.id] || { name: "", phone: "", status: "a-fazer", labor: "", finance: "" };
-        return taskMatchesFilters(task, entry, !!(entry.name || entry.phone));
+        const entry = state[task.id] || emptyEntry();
+        return taskMatchesFilters(task, entry);
       });
       if (!visibleTasks.length) return;
 
@@ -442,63 +482,141 @@
       grid.className = "cards-grid";
 
       catTasks.forEach(task => {
-        const entry = state[task.id] || { name: "", phone: "", status: "a-fazer", labor: "", finance: "" };
-        const hasOwner = !!(entry.name || entry.phone);
-        const isEditing = editingTasks.has(task.id) || !hasOwner;
-        const isSaving = savingTasks.has(task.id);
+        const entry = state[task.id] || emptyEntry();
+        const responsavel = entry.responsavel;
+        const auxiliares = entry.auxiliares || [];
+        const hasResponsavel = !!responsavel;
+        const isSavingResp = savingResp.has(task.id);
+        const isAddingAux = auxFormOpen.has(task.id);
+        const isSavingAux = savingAux.has(task.id);
+        const auxSlotsLeft = MAX_AUXILIARES - auxiliares.length;
+
         const card = document.createElement("div");
         card.className = "card";
         card.dataset.priority = task.pri;
-        if (!taskMatchesFilters(task, entry, hasOwner)) card.classList.add("hidden");
+        if (!taskMatchesFilters(task, entry)) card.classList.add("hidden");
 
-        const formOrLocked = isEditing ? `
-          <div class="field-label">Nome</div>
-          <input type="text" placeholder="Seu nome" maxlength="40" data-field="name" data-id="${task.id}" value="${escapeAttr(entry.name)}" />
-          <div class="field-error" data-error-for="name" data-id="${task.id}">Campo obrigatório</div>
+        let responsavelBlock;
+        if (respFormOpen.has(task.id)) {
+          const r = responsavel || { name: "", phone: "", labor: "", finance: "" };
+          responsavelBlock = `
+            <div class="field-label">Nome</div>
+            <input type="text" placeholder="Seu nome" maxlength="40" data-field="resp-name" data-id="${task.id}" value="${escapeAttr(r.name)}" />
+            <div class="field-error" data-error-for="resp-name" data-id="${task.id}">Campo obrigatório</div>
 
-          <div class="field-label">Celular (com DDD)</div>
-          <input type="tel" placeholder="(11) 91234-5678" maxlength="20" data-field="phone" data-id="${task.id}" value="${escapeAttr(entry.phone)}" />
-          <div class="field-error" data-error-for="phone" data-id="${task.id}">Campo obrigatório</div>
+            <div class="field-label">Celular (com DDD)</div>
+            <input type="tel" placeholder="(11) 91234-5678" maxlength="20" data-field="resp-phone" data-id="${task.id}" value="${escapeAttr(r.phone)}" />
+            <div class="field-error" data-error-for="resp-phone" data-id="${task.id}">Campo obrigatório</div>
 
-          <div class="field-label">Mão de obra</div>
-          <select data-field="labor" data-id="${task.id}">
-            <option value="" ${!entry.labor ? "selected" : ""}>— selecione uma opção —</option>
-            <option value="nao-se-aplica" ${entry.labor === "nao-se-aplica" ? "selected" : ""}>Não se aplica</option>
-            <option value="vou-executar" ${entry.labor === "vou-executar" ? "selected" : ""}>Vou executar</option>
-            <option value="vou-encontrar" ${entry.labor === "vou-encontrar" ? "selected" : ""}>Vou encontrar alguém para executar</option>
-          </select>
-          <div class="field-error" data-error-for="labor" data-id="${task.id}">Campo obrigatório</div>
+            <div class="field-label">Mão de obra</div>
+            <select data-field="resp-labor" data-id="${task.id}">
+              <option value="" ${!r.labor ? "selected" : ""}>— selecione uma opção —</option>
+              <option value="nao-se-aplica" ${r.labor === "nao-se-aplica" ? "selected" : ""}>Não se aplica</option>
+              <option value="vou-executar" ${r.labor === "vou-executar" ? "selected" : ""}>Vou executar</option>
+              <option value="vou-encontrar" ${r.labor === "vou-encontrar" ? "selected" : ""}>Vou encontrar alguém para executar</option>
+            </select>
+            <div class="field-error" data-error-for="resp-labor" data-id="${task.id}">Campo obrigatório</div>
 
-          <div class="field-label">Financeiro</div>
-          <select data-field="finance" data-id="${task.id}">
-            <option value="" ${!entry.finance ? "selected" : ""}>— selecione uma opção —</option>
-            <option value="nao-se-aplica" ${entry.finance === "nao-se-aplica" ? "selected" : ""}>Não se aplica</option>
-            <option value="doar-parcial" ${entry.finance === "doar-parcial" ? "selected" : ""}>Vou doar parcialmente e encontrar mais doadores</option>
-            <option value="encontrar-doadores" ${entry.finance === "encontrar-doadores" ? "selected" : ""}>Vou encontrar doadores</option>
-            <option value="doar-integral" ${entry.finance === "doar-integral" ? "selected" : ""}>Vou doar integralmente</option>
-          </select>
-          <div class="field-error" data-error-for="finance" data-id="${task.id}">Campo obrigatório</div>
+            <div class="field-label">Financeiro</div>
+            <select data-field="resp-finance" data-id="${task.id}">
+              <option value="" ${!r.finance ? "selected" : ""}>— selecione uma opção —</option>
+              <option value="nao-se-aplica" ${r.finance === "nao-se-aplica" ? "selected" : ""}>Não se aplica</option>
+              <option value="doar-parcial" ${r.finance === "doar-parcial" ? "selected" : ""}>Vou doar parcialmente e encontrar mais doadores</option>
+              <option value="encontrar-doadores" ${r.finance === "encontrar-doadores" ? "selected" : ""}>Vou encontrar doadores</option>
+              <option value="doar-integral" ${r.finance === "doar-integral" ? "selected" : ""}>Vou doar integralmente</option>
+            </select>
+            <div class="field-error" data-error-for="resp-finance" data-id="${task.id}">Campo obrigatório</div>
 
-          <div class="field-label">Status</div>
-          <select data-field="status" data-id="${task.id}">
-            <option value="a-fazer" ${entry.status === "a-fazer" ? "selected" : ""}>A fazer</option>
-            <option value="em-andamento" ${entry.status === "em-andamento" ? "selected" : ""}>Em andamento</option>
-            <option value="concluido" ${entry.status === "concluido" ? "selected" : ""}>Concluído</option>
-          </select>
-          <div class="field-error" data-error-for="status" data-id="${task.id}">Campo obrigatório</div>
+            <button class="btn btn-save" data-action="save-resp" data-id="${task.id}" ${isSavingResp ? "disabled" : ""}>${isSavingResp ? "Salvando..." : "Salvar"}</button>
+            <button class="btn-cancel" data-action="cancel-resp" data-id="${task.id}">Cancelar</button>
+            ${hasResponsavel ? `<button class="btn-clear" data-action="clear-resp" data-id="${task.id}">Limpar Responsável</button>` : ""}
+          `;
+        } else if (hasResponsavel) {
+          responsavelBlock = `
+            <div class="locked-box">
+              <button class="edit-pencil" data-action="edit-resp" data-id="${task.id}" title="Editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+              <div class="locked-row"><span class="lbl">Responsável</span>${escapeAttr(responsavel.name) || "—"}</div>
+              <div class="locked-row"><span class="lbl">Celular</span>${escapeAttr(responsavel.phone) || "—"}</div>
+              <div class="locked-row"><span class="lbl">Mão de obra</span>${LABOR_LABELS[responsavel.labor] || "—"}</div>
+              <div class="locked-row"><span class="lbl">Financeiro</span>${FINANCE_LABELS[responsavel.finance] || "—"}</div>
+            </div>
+          `;
+        } else {
+          responsavelBlock = `<button class="btn-secondary" data-action="claim-resp" data-id="${task.id}">Ser Responsável</button>`;
+        }
 
-          <button class="btn btn-save" data-id="${task.id}" ${isSaving ? "disabled" : ""}>${isSaving ? "Salvando..." : "Salvar"}</button>
-          ${hasOwner ? `<button class="btn-cancel" data-action="cancel" data-id="${task.id}">cancelar</button>` : ""}
-          ${hasOwner ? `<button class="btn-clear" data-id="${task.id}">limpar tarefa</button>` : ""}
-        ` : `
-          <div class="locked-box">
-            <button class="edit-pencil" data-action="edit" data-id="${task.id}" title="Editar">✏️</button>
-            <div class="locked-row"><span class="lbl">Nome</span>${escapeAttr(entry.name) || "—"}</div>
-            <div class="locked-row"><span class="lbl">Celular</span>${escapeAttr(entry.phone) || "—"}</div>
-            ${entry.labor ? `<div class="locked-row"><span class="lbl">Mão de obra</span>${LABOR_LABELS[entry.labor]}</div>` : ""}
-            ${entry.finance ? `<div class="locked-row"><span class="lbl">Financeiro</span>${FINANCE_LABELS[entry.finance]}</div>` : ""}
-          </div>
-        `;
+        const auxRows = auxiliares.map(aux => {
+          const key = auxKey(task.id, aux.id);
+          if (auxEditOpen.has(key)) {
+            const isSavingThisEdit = savingAuxEdit.has(key);
+            return `
+              <div class="aux-row">
+                <div class="field-label">Nome</div>
+                <input type="text" placeholder="Nome" maxlength="40" data-field="aux-name" data-id="${key}" value="${escapeAttr(aux.name)}" />
+                <div class="field-error" data-error-for="aux-name" data-id="${key}">Campo obrigatório</div>
+
+                <div class="field-label">Celular (com DDD)</div>
+                <input type="tel" placeholder="(11) 91234-5678" maxlength="20" data-field="aux-phone" data-id="${key}" value="${escapeAttr(aux.phone)}" />
+                <div class="field-error" data-error-for="aux-phone" data-id="${key}">Campo obrigatório</div>
+
+                <div class="field-label">Como ajuda</div>
+                <select data-field="aux-tipo" data-id="${key}">
+                  <option value="" ${!aux.tipo ? "selected" : ""}>— selecione uma opção —</option>
+                  <option value="mao-de-obra" ${aux.tipo === "mao-de-obra" ? "selected" : ""}>Mão de obra</option>
+                  <option value="financeiro" ${aux.tipo === "financeiro" ? "selected" : ""}>Financeiro</option>
+                  <option value="ambos" ${aux.tipo === "ambos" ? "selected" : ""}>Mão de obra + financeiro</option>
+                </select>
+                <div class="field-error" data-error-for="aux-tipo" data-id="${key}">Campo obrigatório</div>
+
+                <button class="btn btn-save" data-action="save-aux-edit" data-id="${task.id}" data-aux-id="${aux.id}" ${isSavingThisEdit ? "disabled" : ""}>${isSavingThisEdit ? "Salvando..." : "Salvar"}</button>
+                <button class="btn-cancel" data-action="cancel-aux-edit" data-id="${task.id}" data-aux-id="${aux.id}">Cancelar</button>
+                <button class="btn-clear" data-action="clear-aux" data-id="${task.id}" data-aux-id="${aux.id}">Limpar Auxiliar</button>
+              </div>
+            `;
+          }
+          return `
+            <div class="aux-row">
+              <button class="edit-pencil" data-action="edit-aux" data-id="${task.id}" data-aux-id="${aux.id}" title="Editar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+              <div class="locked-row"><span class="lbl">Auxiliar</span>${escapeAttr(aux.name)}</div>
+              <div class="locked-row"><span class="lbl">Celular</span>${escapeAttr(aux.phone)}</div>
+              <div class="locked-row"><span class="lbl">Como ajuda</span>${AUX_TIPO_LABELS[aux.tipo] || "—"}</div>
+            </div>
+          `;
+        }).join("");
+
+        let auxFormOrButton;
+        if (isAddingAux) {
+          auxFormOrButton = `
+            <div class="field-label">Nome</div>
+            <input type="text" placeholder="Seu nome" maxlength="40" data-field="aux-name" data-id="${task.id}" value="" />
+            <div class="field-error" data-error-for="aux-name" data-id="${task.id}">Campo obrigatório</div>
+
+            <div class="field-label">Celular (com DDD)</div>
+            <input type="tel" placeholder="(11) 91234-5678" maxlength="20" data-field="aux-phone" data-id="${task.id}" value="" />
+            <div class="field-error" data-error-for="aux-phone" data-id="${task.id}">Campo obrigatório</div>
+
+            <div class="field-label">Como ajuda</div>
+            <select data-field="aux-tipo" data-id="${task.id}">
+              <option value="" selected>— selecione uma opção —</option>
+              <option value="mao-de-obra">Mão de obra</option>
+              <option value="financeiro">Financeiro</option>
+              <option value="ambos">Mão de obra + financeiro</option>
+            </select>
+            <div class="field-error" data-error-for="aux-tipo" data-id="${task.id}">Campo obrigatório</div>
+
+            <button class="btn btn-save" data-action="save-aux" data-id="${task.id}" ${isSavingAux ? "disabled" : ""}>${isSavingAux ? "Salvando..." : "Salvar"}</button>
+            <button class="btn-cancel" data-action="cancel-aux" data-id="${task.id}">Cancelar</button>
+          `;
+        } else if (!hasResponsavel) {
+          auxFormOrButton = `
+            <button class="btn-secondary" disabled title="Defina um responsável primeiro.">+ Ser Auxiliar (${auxSlotsLeft} vaga${auxSlotsLeft > 1 ? "s" : ""})</button>
+            <div class="aux-limit-note">Defina um responsável primeiro.</div>
+          `;
+        } else if (auxSlotsLeft > 0) {
+          auxFormOrButton = `<button class="btn-secondary" data-action="add-aux" data-id="${task.id}">+ Ser Auxiliar (${auxSlotsLeft} vaga${auxSlotsLeft > 1 ? "s" : ""})</button>`;
+        } else {
+          auxFormOrButton = `<div class="aux-limit-note">Vagas de auxiliares preenchidas (3/3)</div>`;
+        }
 
         const isExpanded = expandedTasks.has(task.id);
 
@@ -511,37 +629,60 @@
           <button class="more-details-btn" data-action="toggle-detail" data-id="${task.id}">${isExpanded ? "ocultar detalhes" : "+ mais detalhes"}</button>
           ${isExpanded ? `<div class="detail-box">${task.detail}</div>` : ""}
           <span class="status-badge ${entry.status}" data-id="${task.id}" title="Clique para mudar o status">${STATUS_LABELS[entry.status]}</span>
-          ${formOrLocked}
+          ${responsavelBlock}
+          <div class="sub-heading">Auxiliares</div>
+          ${auxRows}
+          ${auxFormOrButton}
         `;
         grid.appendChild(card);
       });
       container.appendChild(grid);
     });
 
-    container.querySelectorAll(".btn-save").forEach(btn => btn.addEventListener("click", () => saveTask(btn.dataset.id)));
-    container.querySelectorAll(".btn-clear").forEach(btn => btn.addEventListener("click", () => clearTask(btn.dataset.id)));
-    container.querySelectorAll("[data-action='edit']").forEach(btn => btn.addEventListener("click", () => {
-      editingTasks.add(btn.dataset.id);
+    container.querySelectorAll('[data-action="claim-resp"]').forEach(btn => btn.addEventListener("click", () => {
+      respFormOpen.add(btn.dataset.id);
       renderBoard();
     }));
-    container.querySelectorAll("[data-action='cancel']").forEach(btn => btn.addEventListener("click", () => {
-      editingTasks.delete(btn.dataset.id);
+    container.querySelectorAll('[data-action="edit-resp"]').forEach(btn => btn.addEventListener("click", () => {
+      respFormOpen.add(btn.dataset.id);
       renderBoard();
     }));
+    container.querySelectorAll('[data-action="cancel-resp"]').forEach(btn => btn.addEventListener("click", () => {
+      respFormOpen.delete(btn.dataset.id);
+      renderBoard();
+    }));
+    container.querySelectorAll('[data-action="save-resp"]').forEach(btn => btn.addEventListener("click", () => saveResponsavel(btn.dataset.id)));
+    container.querySelectorAll('[data-action="clear-resp"]').forEach(btn => btn.addEventListener("click", () => clearResponsavel(btn.dataset.id)));
+
+    container.querySelectorAll('[data-action="add-aux"]').forEach(btn => btn.addEventListener("click", () => {
+      auxFormOpen.add(btn.dataset.id);
+      renderBoard();
+    }));
+    container.querySelectorAll('[data-action="cancel-aux"]').forEach(btn => btn.addEventListener("click", () => {
+      auxFormOpen.delete(btn.dataset.id);
+      renderBoard();
+    }));
+    container.querySelectorAll('[data-action="save-aux"]').forEach(btn => btn.addEventListener("click", () => saveAuxiliar(btn.dataset.id)));
+    container.querySelectorAll('[data-action="clear-aux"]').forEach(btn => btn.addEventListener("click", () => removeAuxiliar(btn.dataset.id, btn.dataset.auxId)));
+    container.querySelectorAll('[data-action="edit-aux"]').forEach(btn => btn.addEventListener("click", () => {
+      auxEditOpen.add(auxKey(btn.dataset.id, btn.dataset.auxId));
+      renderBoard();
+    }));
+    container.querySelectorAll('[data-action="cancel-aux-edit"]').forEach(btn => btn.addEventListener("click", () => {
+      auxEditOpen.delete(auxKey(btn.dataset.id, btn.dataset.auxId));
+      renderBoard();
+    }));
+    container.querySelectorAll('[data-action="save-aux-edit"]').forEach(btn => btn.addEventListener("click", () => saveAuxiliarEdit(btn.dataset.id, btn.dataset.auxId)));
+
     container.querySelectorAll("[data-action='toggle-detail']").forEach(btn => btn.addEventListener("click", () => {
       const id = btn.dataset.id;
       if (expandedTasks.has(id)) expandedTasks.delete(id); else expandedTasks.add(id);
       renderBoard();
     }));
-    container.querySelectorAll('select[data-field="status"]').forEach(sel => sel.addEventListener("change", (e) => {
-      const card = e.target.closest(".card");
-      const badge = card?.querySelector(".status-badge");
-      if (!badge) return;
-      const newStatus = e.target.value;
-      badge.className = `status-badge ${newStatus}`;
-      badge.textContent = STATUS_LABELS[newStatus];
-    }));
     container.querySelectorAll(".status-badge").forEach(badge => badge.addEventListener("click", () => cycleStatus(badge.dataset.id)));
+    container.querySelectorAll('input[data-field="resp-phone"], input[data-field="aux-phone"]').forEach(el => el.addEventListener("input", () => {
+      el.value = formatPhone(el.value);
+    }));
     container.querySelectorAll("[data-field]").forEach(el => el.addEventListener("input", () => {
       if (el.value.trim()) setFieldValidity(el.dataset.id, el.dataset.field, true);
     }));
@@ -577,6 +718,16 @@
     return d.innerHTML.replace(/"/g, "&quot;");
   }
 
+  function formatPhone(value) {
+    const digits = (value || "").replace(/\D/g, "").slice(0, 11);
+    const len = digits.length;
+    if (len === 0) return "";
+    if (len <= 2) return `(${digits}`;
+    if (len <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (len <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+
   function setFieldValidity(taskId, field, isValid) {
     const el = document.querySelector(`[data-field="${field}"][data-id="${taskId}"]`);
     const errorEl = document.querySelector(`.field-error[data-error-for="${field}"][data-id="${taskId}"]`);
@@ -584,14 +735,13 @@
     if (errorEl) errorEl.classList.toggle("visible", !isValid);
   }
 
-  async function saveTask(taskId) {
-    const name = document.querySelector(`input[data-field="name"][data-id="${taskId}"]`)?.value?.trim() || "";
-    const phone = document.querySelector(`input[data-field="phone"][data-id="${taskId}"]`)?.value?.trim() || "";
-    const status = document.querySelector(`select[data-field="status"][data-id="${taskId}"]`)?.value || "";
-    const labor = document.querySelector(`select[data-field="labor"][data-id="${taskId}"]`)?.value || "";
-    const finance = document.querySelector(`select[data-field="finance"][data-id="${taskId}"]`)?.value || "";
+  async function saveResponsavel(taskId) {
+    const name = document.querySelector(`input[data-field="resp-name"][data-id="${taskId}"]`)?.value?.trim() || "";
+    const phone = document.querySelector(`input[data-field="resp-phone"][data-id="${taskId}"]`)?.value?.trim() || "";
+    const labor = document.querySelector(`select[data-field="resp-labor"][data-id="${taskId}"]`)?.value || "";
+    const finance = document.querySelector(`select[data-field="resp-finance"][data-id="${taskId}"]`)?.value || "";
 
-    const fields = { name, phone, labor, finance, status };
+    const fields = { "resp-name": name, "resp-phone": phone, "resp-labor": labor, "resp-finance": finance };
     let allValid = true;
     for (const [field, value] of Object.entries(fields)) {
       const isValid = !!value;
@@ -600,24 +750,128 @@
     }
     if (!allValid) return;
 
-    savingTasks.add(taskId);
+    savingResp.add(taskId);
     renderBoard();
     try {
-      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/responsavel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, status, labor, finance }),
+        body: JSON.stringify({ name, phone, labor, finance }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || `Erro ao salvar (HTTP ${res.status})`);
       }
       state[taskId] = await res.json();
-      editingTasks.delete(taskId);
+      respFormOpen.delete(taskId);
     } catch (e) {
       showError(e.message || "Não foi possível salvar. Tente novamente.");
     } finally {
-      savingTasks.delete(taskId);
+      savingResp.delete(taskId);
+      renderBoard();
+    }
+  }
+
+  async function clearResponsavel(taskId) {
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/responsavel`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao limpar (HTTP ${res.status})`);
+      }
+      state[taskId] = await res.json();
+      respFormOpen.delete(taskId);
+    } catch (e) {
+      showError(e.message || "Não foi possível limpar o responsável. Tente novamente.");
+    } finally {
+      renderBoard();
+    }
+  }
+
+  async function saveAuxiliar(taskId) {
+    const name = document.querySelector(`input[data-field="aux-name"][data-id="${taskId}"]`)?.value?.trim() || "";
+    const phone = document.querySelector(`input[data-field="aux-phone"][data-id="${taskId}"]`)?.value?.trim() || "";
+    const tipo = document.querySelector(`select[data-field="aux-tipo"][data-id="${taskId}"]`)?.value || "";
+
+    const fields = { "aux-name": name, "aux-phone": phone, "aux-tipo": tipo };
+    let allValid = true;
+    for (const [field, value] of Object.entries(fields)) {
+      const isValid = !!value;
+      setFieldValidity(taskId, field, isValid);
+      if (!isValid) allValid = false;
+    }
+    if (!allValid) return;
+
+    savingAux.add(taskId);
+    renderBoard();
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/auxiliares`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, tipo }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao salvar (HTTP ${res.status})`);
+      }
+      state[taskId] = await res.json();
+      auxFormOpen.delete(taskId);
+    } catch (e) {
+      showError(e.message || "Não foi possível salvar. Tente novamente.");
+    } finally {
+      savingAux.delete(taskId);
+      renderBoard();
+    }
+  }
+
+  async function removeAuxiliar(taskId, auxId) {
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/auxiliares/${encodeURIComponent(auxId)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao remover (HTTP ${res.status})`);
+      }
+      state[taskId] = await res.json();
+    } catch (e) {
+      showError(e.message || "Não foi possível remover. Tente novamente.");
+    } finally {
+      renderBoard();
+    }
+  }
+
+  async function saveAuxiliarEdit(taskId, auxId) {
+    const key = auxKey(taskId, auxId);
+    const name = document.querySelector(`input[data-field="aux-name"][data-id="${key}"]`)?.value?.trim() || "";
+    const phone = document.querySelector(`input[data-field="aux-phone"][data-id="${key}"]`)?.value?.trim() || "";
+    const tipo = document.querySelector(`select[data-field="aux-tipo"][data-id="${key}"]`)?.value || "";
+
+    const fields = { "aux-name": name, "aux-phone": phone, "aux-tipo": tipo };
+    let allValid = true;
+    for (const [field, value] of Object.entries(fields)) {
+      const isValid = !!value;
+      setFieldValidity(key, field, isValid);
+      if (!isValid) allValid = false;
+    }
+    if (!allValid) return;
+
+    savingAuxEdit.add(key);
+    renderBoard();
+    try {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/auxiliares/${encodeURIComponent(auxId)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, tipo }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Erro ao salvar (HTTP ${res.status})`);
+      }
+      state[taskId] = await res.json();
+      auxEditOpen.delete(key);
+    } catch (e) {
+      showError(e.message || "Não foi possível salvar. Tente novamente.");
+    } finally {
+      savingAuxEdit.delete(key);
       renderBoard();
     }
   }
@@ -630,24 +884,15 @@
     badge.className = `status-badge ${next}`;
     badge.dataset.id = taskId;
     badge.textContent = STATUS_LABELS[next];
-
-    const select = document.querySelector(`select[data-field="status"][data-id="${taskId}"]`);
-    if (select) {
-      select.value = next;
-      setFieldValidity(taskId, "status", true);
-    } else {
-      quickUpdateStatus(taskId, next);
-    }
+    updateStatus(taskId, next);
   }
 
-  async function quickUpdateStatus(taskId, newStatus) {
-    const entry = state[taskId];
-    if (!entry) return;
+  async function updateStatus(taskId, newStatus) {
     try {
-      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, {
+      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/status`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: entry.name, phone: entry.phone, status: newStatus, labor: entry.labor, finance: entry.finance }),
+        body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -656,22 +901,6 @@
       state[taskId] = await res.json();
     } catch (e) {
       showError(e.message || "Não foi possível atualizar o status. Tente novamente.");
-    } finally {
-      renderBoard();
-    }
-  }
-
-  async function clearTask(taskId) {
-    try {
-      const res = await fetch(`/api/state/${encodeURIComponent(taskId)}`, { method: "DELETE" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Erro ao limpar (HTTP ${res.status})`);
-      }
-      delete state[taskId];
-      editingTasks.delete(taskId);
-    } catch (e) {
-      showError(e.message || "Não foi possível limpar a tarefa. Tente novamente.");
     } finally {
       renderBoard();
     }

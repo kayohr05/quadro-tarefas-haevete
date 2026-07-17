@@ -20,17 +20,23 @@ O estado fica salvo em `data/state.json` (criado automaticamente). Esse arquivo
 
 ## Como funciona
 
-- `app.py` — API Flask:
-  - `GET /api/state` → devolve o estado de todas as tarefas preenchidas
-  - `POST /api/state/<id>` → salva nome/celular/status de uma tarefa (com rate
-    limit simples: 20 requisições/minuto por IP)
-  - `DELETE /api/state/<id>` → limpa uma tarefa (libera para outro voluntário)
+- `app.py` — API Flask. Cada tarefa tem `status`, um `responsavel` (só 1,
+  opcional) e até 3 `auxiliares`:
+  - `GET /api/state` → devolve o estado de todas as tarefas
+  - `POST /api/state/<id>/status` → muda o status (clicando no badge do card)
+  - `POST /api/state/<id>/responsavel` · `DELETE /api/state/<id>/responsavel`
+    → assume/edita/limpa o responsável
+  - `POST /api/state/<id>/auxiliares` → adiciona um auxiliar (máx. 3)
+  - `POST /api/state/<id>/auxiliares/<aux_id>` · `DELETE .../auxiliares/<aux_id>`
+    → edita/remove um auxiliar específico
+  - Todos os endpoints de escrita têm rate limit simples (20 req/min por IP)
   - Serve `static/index.html` na raiz `/`
+  - `load_state()` migra automaticamente registros salvos no formato antigo
+    (versão anterior, sem responsável/auxiliares) sem perder dados
 - `static/index.html` — a lista fixa das 35 tarefas (categoria, prioridade,
   título, descrições) fica **hardcoded no HTML**, exatamente como no artifact
-  original, porque a spec pede que isso não seja editável pelos usuários. Só
-  nome/celular/status vêm do backend.
-- A tarefa `f3` (LOAS/Bolsa Família) já nasce com `nome: "Kayo"` e
+  original, porque a spec pede que isso não seja editável pelos usuários.
+- A tarefa `f3` (LOAS/Bolsa Família) já nasce com responsável "Kayo" e
   `status: "em-andamento"`, igual à versão original.
 
 Se algum dia precisar editar o texto de uma tarefa (título, descrição,
