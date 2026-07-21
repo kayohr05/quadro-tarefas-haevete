@@ -210,11 +210,11 @@
   .btn-save { background: var(--accent); color: white; }
   .btn-save:hover { background: var(--accent-ink); }
   .btn-clear {
-    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    background: transparent; color: var(--urgente); border: 1px solid var(--urgente-bg);
     width: 100%; margin-top: 6px; padding: 6px 10px; border-radius: 6px;
     font-size: 11.5px; font-family: 'Inter', sans-serif; cursor: pointer;
   }
-  .btn-clear:hover { color: var(--urgente); border-color: var(--urgente); }
+  .btn-clear:hover { background: var(--urgente-bg); border-color: var(--urgente); }
 
   .btn-secondary {
     background: var(--surface); color: var(--accent-ink); border: 1.5px solid var(--accent);
@@ -773,6 +773,7 @@
   }
 
   async function clearResponsavel(taskId) {
+    if (!confirm("Tem certeza que quer limpar o responsável desta tarefa? Essa ação não pode ser desfeita.")) return;
     try {
       const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/responsavel`, { method: "DELETE" });
       if (!res.ok) {
@@ -825,6 +826,7 @@
   }
 
   async function removeAuxiliar(taskId, auxId) {
+    if (!confirm("Tem certeza que quer remover esse auxiliar da tarefa? Essa ação não pode ser desfeita.")) return;
     try {
       const res = await fetch(`/api/state/${encodeURIComponent(taskId)}/auxiliares/${encodeURIComponent(auxId)}`, { method: "DELETE" });
       if (!res.ok) {

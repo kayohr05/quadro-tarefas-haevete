@@ -1,4 +1,5 @@
 data/state.json
+data/audit.log
 data/*.tmp
 __pycache__/
 *.pyc

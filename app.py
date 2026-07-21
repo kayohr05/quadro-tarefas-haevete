@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "data" / "state.json"
+AUDIT_LOG_FILE = BASE_DIR / "data" / "audit.log"
 STATIC_DIR = BASE_DIR / "static"
 
 VALID_IDS = {
@@ -104,6 +105,16 @@ def client_ip() -> str:
     return request.remote_addr or "unknown"
 
 
+def audit_log(action: str, task_id: str, detail: str = "") -> None:
+    try:
+        AUDIT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} | ip={client_ip()} | {action} | {task_id} | {detail}\n"
+        with AUDIT_LOG_FILE.open("a", encoding="utf-8") as f:
+            f.write(line)
+    except OSError:
+        pass
+
+
 def is_rate_limited(ip: str) -> bool:
     now = time.time()
     entry = _hits.get(ip)
@@ -137,6 +148,7 @@ def set_status(task_id: str):
         return jsonify({"error": "Status inválido."}), 400
 
     task = get_task(task_id)
+    audit_log("status", task_id, f"{task.get('status')} -> {status}")
     task["status"] = status
     save_state(state)
     return jsonify(task)
@@ -159,6 +171,8 @@ def set_responsavel(task_id: str):
         return jsonify({"error": "Preencha nome, celular, mão de obra e financeiro antes de salvar."}), 400
 
     task = get_task(task_id)
+    previous = task.get("responsavel")
+    audit_log("set_responsavel", task_id, f"{previous.get('name') if previous else '(vazio)'} -> {name}")
     task["responsavel"] = {"name": name, "phone": phone, "labor": labor, "finance": finance, "ts": int(time.time() * 1000)}
     save_state(state)
     return jsonify(task)
@@ -172,6 +186,8 @@ def clear_responsavel(task_id: str):
         return jsonify({"error": "Muitas requisições. Tente novamente em instantes."}), 429
 
     task = get_task(task_id)
+    previous = task.get("responsavel")
+    audit_log("clear_responsavel", task_id, f"removido: {previous.get('name') if previous else '(já vazio)'}")
     task["responsavel"] = None
     save_state(state)
     return jsonify(task)
@@ -197,6 +213,7 @@ def add_auxiliar(task_id: str):
         return jsonify({"error": "Preencha nome, celular e como pretende auxiliar antes de salvar."}), 400
 
     auxiliar = {"id": uuid.uuid4().hex[:8], "name": name, "phone": phone, "tipo": tipo, "ts": int(time.time() * 1000)}
+    audit_log("add_auxiliar", task_id, f"adicionado: {name}")
     task["auxiliares"].append(auxiliar)
     save_state(state)
     return jsonify(task)
@@ -222,6 +239,7 @@ def update_auxiliar(task_id: str, aux_id: str):
     if not name or not phone or tipo not in VALID_AUX_TIPO:
         return jsonify({"error": "Preencha nome, celular e como pretende auxiliar antes de salvar."}), 400
 
+    audit_log("update_auxiliar", task_id, f"{auxiliar.get('name')} -> {name}")
     auxiliar["name"] = name
     auxiliar["phone"] = phone
     auxiliar["tipo"] = tipo
@@ -238,11 +256,12 @@ def remove_auxiliar(task_id: str, aux_id: str):
         return jsonify({"error": "Muitas requisições. Tente novamente em instantes."}), 429
 
     task = get_task(task_id)
-    before = len(task["auxiliares"])
-    task["auxiliares"] = [a for a in task["auxiliares"] if a.get("id") != aux_id]
-    if len(task["auxiliares"]) == before:
+    removed = next((a for a in task["auxiliares"] if a.get("id") == aux_id), None)
+    if removed is None:
         return jsonify({"error": "Auxiliar não encontrado."}), 404
 
+    audit_log("remove_auxiliar", task_id, f"removido: {removed.get('name')}")
+    task["auxiliares"] = [a for a in task["auxiliares"] if a.get("id") != aux_id]
     save_state(state)
     return jsonify(task)
 
