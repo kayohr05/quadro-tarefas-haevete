@@ -45,7 +45,9 @@
   }
 
   .board-header { position: relative; z-index: 1; text-align: center; margin-bottom: 18px; }
-  .board-logo { width: 72px; height: auto; margin: 0 auto 10px; display: block; }
+  .logo-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 10px; }
+  .logo-row .board-logo { width: auto; height: 52px; margin: 0; }
+  .logo-divider { width: 1px; height: 38px; background: var(--border); }
   .eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
   .board-title { font-family: 'Fraunces', serif; font-weight: 700; font-style: italic; font-size: 30px; color: var(--ink); margin: 4px 0 6px; }
   .board-sub { font-size: 14px; color: var(--muted); max-width: 540px; margin: 0 auto; }
@@ -253,8 +255,14 @@
 
 <div class="board-wrap" id="board">
   <div class="board-header">
-    <img class="board-logo" src="/static/logo-haevete.png" alt="Ha'evete Camping Club">
-    <div class="eyebrow">Ha'evete &middot; Missão em ação</div>
+    <div class="logo-row">
+      <img class="board-logo" src="/static/logo-arena-jovem.png" alt="Arena Jovem">
+      <span class="logo-divider"></span>
+      <img class="board-logo" src="/static/logo-haevete.png" alt="Ha'evete Camping Club">
+      <span class="logo-divider"></span>
+      <img class="board-logo" src="/static/logo-amm.png" alt="AMM Mogi das Cruzes">
+    </div>
+    <div class="eyebrow">Ha'evete, Arena Jovem VM e AMM Mogi das Cruzes &middot; Em Missão</div>
     <div class="board-title">Quadro de Tarefas</div>
     <div class="board-sub">Família Bruno, Pri, Manu e Matheus — escolha uma tarefa, deixe seu nome e celular, e marque o andamento.</div>
   </div>
