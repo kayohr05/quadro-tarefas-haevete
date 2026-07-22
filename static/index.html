@@ -947,8 +947,31 @@
     renderBoard();
   });
 
+  const POLL_INTERVAL_MS = 45000;
+  let pollTimer = null;
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(loadState, POLL_INTERVAL_MS);
+  }
+
+  function stopPolling() {
+    if (!pollTimer) return;
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      loadState();
+      startPolling();
+    }
+  });
+
   loadState();
-  setInterval(loadState, 18000);
+  startPolling();
 </script>
 </body>
 </html>
